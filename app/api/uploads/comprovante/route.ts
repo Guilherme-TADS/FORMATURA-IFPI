@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { sniffMimeType } from "@/lib/uploads";
@@ -73,23 +73,28 @@ export async function POST(request: Request) {
     );
   }
 
+  const fileHash = createHash("sha256").update(buffer).digest("hex");
+
+  const basePayload = {
+    entity_type: "raffle_sale",
+    entity_id: null,
+    kind: "comprovante",
+    status: "UPLOADED" as const,
+    temp_storage_path: storagePath,
+    file_name: file.name || `comprovante.${extension}`,
+    mime_type: sniffedMime,
+    file_size: file.size,
+    description: `sha256:${fileHash}`,
+    uploaded_by: user?.id ?? null,
+  };
+
   const { data: attachment, error: insertError } = await admin
     .from("attachments")
-    .insert({
-      entity_type: "raffle_sale",
-      entity_id: null,
-      kind: "comprovante",
-      status: "UPLOADED",
-      temp_storage_path: storagePath,
-      file_name: file.name || `comprovante.${extension}`,
-      mime_type: sniffedMime,
-      file_size: file.size,
-      uploaded_by: user?.id ?? null,
-    })
+    .insert(basePayload)
     .select("id")
     .single();
 
-  if (insertError) {
+  if (insertError || !attachment) {
     await admin.storage.from("attachments").remove([storagePath]);
     return NextResponse.json(
       { error: "Não foi possível registrar o comprovante." },

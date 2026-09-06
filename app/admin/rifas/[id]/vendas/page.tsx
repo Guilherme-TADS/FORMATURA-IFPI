@@ -3,9 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentProfile } from "@/lib/auth/session";
-import { centsToBRL } from "@/lib/money";
-import { Badge } from "@/components/ui/badge";
-import { SaleRow } from "./sale-row";
+import { SalesTable, type SaleItem } from "./sales-table";
 
 export const instant = false;
 
@@ -50,7 +48,7 @@ export default async function RaffleSalesPage({
     allSaleIds.length > 0
       ? supabase
           .from("attachments")
-          .select("id, entity_id, file_name")
+          .select("id, entity_id, file_name, description")
           .eq("entity_type", "raffle_sale")
           .in("entity_id", allSaleIds)
       : Promise.resolve({ data: [] }),
@@ -58,14 +56,31 @@ export default async function RaffleSalesPage({
 
   const approvedSaleIds = new Set(approvedLogs?.map((l) => l.entity_id));
   const attachmentMap = new Map<string, string>();
+  const hashToSaleIds = new Map<string, string[]>();
+
   for (const att of attachments ?? []) {
     if (att.entity_id) {
       attachmentMap.set(att.entity_id, att.id);
+      const desc = (att as { description?: string | null }).description;
+      if (desc && desc.startsWith("sha256:")) {
+        const hash = desc.slice(7);
+        const list = hashToSaleIds.get(hash) ?? [];
+        list.push(att.entity_id);
+        hashToSaleIds.set(hash, list);
+      }
+    }
+  }
+
+  // Hashes que aparecem mais de uma vez nesta rifa
+  const duplicateHashes = new Set<string>();
+  for (const [hash, ids] of hashToSaleIds.entries()) {
+    if (ids.length > 1) {
+      duplicateHashes.add(hash);
     }
   }
 
   // Uma venda é PENDING se foi feita por autoatendimento (sem seller_id) e ainda não foi aprovada pelo admin
-  const sales = rawSales.map((sale) => {
+  const sales: SaleItem[] = rawSales.map((sale) => {
     let effectiveStatus: "PENDING" | "CONFIRMED" | "CANCELLED" = "CONFIRMED";
     if (sale.status === "CANCELLED") {
       effectiveStatus = "CANCELLED";
@@ -74,7 +89,18 @@ export default async function RaffleSalesPage({
     } else {
       effectiveStatus = "CONFIRMED";
     }
-    return { ...sale, effectiveStatus };
+
+    const att = attachments?.find((a) => a.entity_id === sale.id);
+    const desc = (att as { description?: string | null })?.description;
+    const hash = desc?.startsWith("sha256:") ? desc.slice(7) : null;
+    const isDuplicateProof = Boolean(hash && duplicateHashes.has(hash));
+
+    return {
+      ...sale,
+      effectiveStatus,
+      attachmentId: att?.id ?? null,
+      isDuplicateProof,
+    };
   });
 
   const totalCount = sales.length;
@@ -174,94 +200,11 @@ export default async function RaffleSalesPage({
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full min-w-[760px] text-sm">
-            <thead>
-              <tr className="border-border border-b bg-muted/30 text-left text-xs text-muted-foreground">
-                <th className="py-2.5 pl-4 pr-3 font-medium">Comprador</th>
-                <th className="py-2.5 pr-3 font-medium">Números</th>
-                <th className="py-2.5 pr-3 font-medium">Valor</th>
-                <th className="py-2.5 pr-3 font-medium">Pagamento</th>
-                <th className="py-2.5 pr-3 font-medium">Vendedor</th>
-                <th className="py-2.5 pr-3 font-medium">Status</th>
-                <th className="py-2.5 pr-3 font-medium">Data</th>
-                {profile?.role === "ADMIN" ? (
-                  <th className="py-2.5 pr-4 text-right font-medium">Ações</th>
-                ) : null}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {filteredSales.map((sale) => {
-                const isPending = sale.effectiveStatus === "PENDING";
-                const isConfirmed = sale.effectiveStatus === "CONFIRMED";
-                const attachmentId = attachmentMap.get(sale.id);
-
-                return (
-                  <tr
-                    key={sale.id}
-                    className={`transition-colors hover:bg-muted/20 ${
-                      isPending ? "bg-amber-500/[0.04]" : ""
-                    }`}
-                  >
-                    <td className="py-3 pl-4 pr-3">
-                      <div className="font-medium">{sale.buyers?.full_name}</div>
-                      <div className="text-muted-foreground font-figures text-xs">
-                        {sale.buyers?.phone}
-                      </div>
-                    </td>
-                    <td className="font-figures py-3 pr-3 font-medium">
-                      {sale.raffle_sale_points
-                        .map((sp) => sp.raffle_points?.point_number)
-                        .filter((n) => n !== undefined)
-                        .sort((a, b) => (a ?? 0) - (b ?? 0))
-                        .join(", ")}
-                    </td>
-                    <td className="font-figures py-3 pr-3 font-semibold text-primary">
-                      {centsToBRL(sale.amount_cents)}
-                    </td>
-                    <td className="py-3 pr-3">
-                      <span className="text-xs font-medium">
-                        {sale.payment_methods?.name}
-                      </span>
-                    </td>
-                    <td className="py-3 pr-3 text-xs text-muted-foreground">
-                      {sale.profiles?.full_name ?? "Autoatendimento"}
-                    </td>
-                    <td className="py-3 pr-3">
-                      {isPending ? (
-                        <Badge variant="pending" stamp>
-                          Pendente
-                        </Badge>
-                      ) : isConfirmed ? (
-                        <Badge variant="confirmed" stamp>
-                          Confirmada
-                        </Badge>
-                      ) : (
-                        <Badge variant="void" stamp>
-                          Cancelada
-                        </Badge>
-                      )}
-                    </td>
-                    <td className="font-figures py-3 pr-3 text-xs text-muted-foreground whitespace-nowrap">
-                      {new Date(sale.created_at).toLocaleString("pt-BR")}
-                    </td>
-                    {profile?.role === "ADMIN" ? (
-                      <td className="py-3 pr-4 text-right">
-                        <SaleRow
-                          raffleId={id}
-                          saleId={sale.id}
-                          status={sale.effectiveStatus}
-                          attachmentId={attachmentId}
-                          cancelledReason={sale.cancelled_reason}
-                        />
-                      </td>
-                    ) : null}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <SalesTable
+          raffleId={id}
+          sales={filteredSales}
+          isAdmin={profile?.role === "ADMIN"}
+        />
       )}
     </div>
   );

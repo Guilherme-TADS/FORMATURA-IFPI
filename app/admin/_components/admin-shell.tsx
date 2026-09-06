@@ -29,10 +29,12 @@ const roleLabels: Record<string, string> = {
 function NavLinks({
   items,
   pathname,
+  pendingSalesCount = 0,
   onNavigate,
 }: {
   items: NavItem[];
   pathname: string;
+  pendingSalesCount?: number;
   onNavigate?: () => void;
 }) {
   return (
@@ -40,6 +42,8 @@ function NavLinks({
       {items.map((item) => {
         const Icon = item.icon;
         const active = pathname.startsWith(item.href);
+        const hasPendingBadge = item.href === "/admin/rifas" && pendingSalesCount > 0;
+
         return (
           <Link
             key={item.href}
@@ -53,7 +57,20 @@ function NavLinks({
             )}
           >
             <Icon className="size-4" />
-            {item.label}
+            <span className="flex-1 truncate">{item.label}</span>
+            {hasPendingBadge ? (
+              <span
+                className={cn(
+                  "rounded-full px-1.5 py-0.5 text-[11px] font-semibold",
+                  active
+                    ? "bg-primary-foreground text-primary"
+                    : "bg-amber-500/20 text-amber-600 dark:text-amber-400",
+                )}
+                title={`${pendingSalesCount} venda(s) aguardando conferência`}
+              >
+                {pendingSalesCount}
+              </span>
+            ) : null}
           </Link>
         );
       })}
@@ -64,10 +81,12 @@ function NavLinks({
 export function AdminShell({
   fullName,
   role,
+  pendingSalesCount = 0,
   children,
 }: {
   fullName: string;
   role: Role;
+  pendingSalesCount?: number;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -86,7 +105,7 @@ export function AdminShell({
           </p>
         </div>
         <div className="flex-1">
-          <NavLinks items={navItems} pathname={pathname} />
+          <NavLinks items={navItems} pathname={pathname} pendingSalesCount={pendingSalesCount} />
         </div>
         <div className="receipt-divider pt-3">
           <Link
@@ -129,6 +148,7 @@ export function AdminShell({
                 <NavLinks
                   items={navItems}
                   pathname={pathname}
+                  pendingSalesCount={pendingSalesCount}
                   onNavigate={() => setMobileOpen(false)}
                 />
               </div>

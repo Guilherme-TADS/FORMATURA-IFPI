@@ -59,6 +59,45 @@ export async function approveSale(raffleId: string, saleId: string) {
   }
 }
 
+export async function approveMultipleSales(raffleId: string, saleIds: string[]) {
+  if (!saleIds.length) return { error: "Nenhuma venda selecionada." };
+
+  try {
+    const { supabase, userId } = await requireAdmin();
+
+    const { data: sales, error: fetchError } = await supabase
+      .from("raffle_sales")
+      .select("id, status")
+      .in("id", saleIds);
+
+    if (fetchError || !sales) return { error: "Erro ao buscar vendas." };
+
+    const validSaleIds = sales.filter((s) => s.status !== "CANCELLED").map((s) => s.id);
+    if (!validSaleIds.length) return { error: "Nenhuma das vendas selecionadas pode ser aprovada." };
+
+    const auditRows = validSaleIds.map((id) => ({
+      action: "SALE_APPROVED",
+      entity_type: "raffle_sale",
+      entity_id: id,
+      user_id: userId,
+      new_data: { approved_at: new Date().toISOString(), bulk: true },
+    }));
+
+    const { error: auditError } = await supabase.from("audit_logs").insert(auditRows);
+    if (auditError) {
+      return { error: "Não foi possível registrar a aprovação em lote." };
+    }
+
+    updateTag("raffles");
+    revalidatePath(`/admin/rifas/${raffleId}/vendas`);
+    revalidatePath(`/admin/rifas/${raffleId}/numeros`);
+    revalidatePath(`/admin/rifas/${raffleId}`);
+    return { success: true, count: validSaleIds.length };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Erro ao aprovar vendas em lote." };
+  }
+}
+
 export async function cancelSale(raffleId: string, saleId: string, reason: string) {
   const trimmed = reason.trim();
   if (trimmed.length < 3) {
