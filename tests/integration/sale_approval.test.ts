@@ -78,7 +78,7 @@ describe("sale approval flow", () => {
     const { data: method } = await admin
       .from("payment_methods")
       .select("id")
-      .eq("name", "Dinheiro")
+      .eq("name", "PIX")
       .single();
 
     const { data: receipt, error: confirmError } = await client.rpc("rpc_confirm_sale", {

@@ -163,7 +163,7 @@ describe("RBAC across admin-only RPCs and RLS policies", () => {
         p_point_numbers: [1],
         p_reservation_token: token,
       });
-      const { data: method } = await admin.from("payment_methods").select("id").eq("name", "Dinheiro").single();
+      const { data: method } = await admin.from("payment_methods").select("id").eq("name", "PIX").single();
       const { data: receipt } = await vendedorClient.rpc("rpc_confirm_sale", {
         p_raffle_id: raffleId,
         p_reservation_token: token,

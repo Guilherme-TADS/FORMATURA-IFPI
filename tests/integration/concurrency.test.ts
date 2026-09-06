@@ -93,7 +93,7 @@ describe("raffle point concurrency", () => {
     const { data: methods } = await admin
       .from("payment_methods")
       .select("id")
-      .eq("name", "Dinheiro")
+      .eq("name", "PIX")
       .single();
 
     const confirmArgs = {
@@ -149,7 +149,7 @@ describe("raffle point concurrency", () => {
     const { data: methods } = await admin
       .from("payment_methods")
       .select("id")
-      .eq("name", "Dinheiro")
+      .eq("name", "PIX")
       .single();
 
     const { error } = await client.rpc("rpc_confirm_sale", {
@@ -186,7 +186,7 @@ describe("raffle point concurrency", () => {
     const { data: methods } = await admin
       .from("payment_methods")
       .select("id")
-      .eq("name", "Dinheiro")
+      .eq("name", "PIX")
       .single();
 
     async function attemptFullCheckout() {

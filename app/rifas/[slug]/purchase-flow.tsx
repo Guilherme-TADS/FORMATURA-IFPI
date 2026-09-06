@@ -61,10 +61,16 @@ export function PurchaseFlow({
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [attachmentId, setAttachmentId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [cashConfirmed, setCashConfirmed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [reserving, setReserving] = useState(false);
   const [cancellingReservation, setCancellingReservation] = useState(false);
+
+  const pixMethod = useMemo(() => {
+    return (
+      paymentMethods.find((m) => m.name?.toUpperCase() === "PIX") ??
+      paymentMethods[0]
+    );
+  }, [paymentMethods]);
 
   const form = useForm({
     resolver: zodResolver(buyerFormSchema),
@@ -74,23 +80,21 @@ export function PurchaseFlow({
       whatsapp: "",
       instagram: "",
       notes: "",
-      paymentMethodId: "",
+      paymentMethodId: pixMethod?.id ?? "",
     },
   });
 
-  const watchedPaymentMethodId = useWatch({
-    control: form.control,
-    name: "paymentMethodId",
-  });
-  const selectedPaymentMethod = paymentMethods.find(
-    (m) => m.id === watchedPaymentMethodId,
-  );
-  const isPix = selectedPaymentMethod?.name?.toUpperCase() === "PIX";
+  useEffect(() => {
+    if (pixMethod?.id && !form.getValues("paymentMethodId")) {
+      form.setValue("paymentMethodId", pixMethod.id);
+    }
+  }, [pixMethod, form]);
+
   const [copied, setCopied] = useState(false);
   const totalCents = selected.length * unitPriceCents;
 
   const pixCode = useMemo(() => {
-    if (!isPix || !pixInfo?.key || !reservation) return "";
+    if (!pixInfo?.key || !reservation) return "";
     return generatePixPayload({
       pixKey: pixInfo.key,
       merchantName: pixInfo.merchantName,
@@ -98,7 +102,7 @@ export function PurchaseFlow({
       amountCents: totalCents,
       txId: `RIFA${reservation.pointNumbers[0] ?? ""}`,
     });
-  }, [isPix, pixInfo, reservation, totalCents]);
+  }, [pixInfo, reservation, totalCents]);
 
   function handleCopyPix() {
     const textToCopy = pixCode || pixInfo?.key;
@@ -265,12 +269,8 @@ export function PurchaseFlow({
     paymentMethodId: string;
   }) {
     if (!reservation) return;
-    if (isPix && !attachmentId) {
-      toast.error("Anexe o comprovante do PIX para continuar.");
-      return;
-    }
-    if (!isPix && !cashConfirmed) {
-      toast.error("Confirme que fará o pagamento em mãos.");
+    if (!sellerName && !attachmentId) {
+      toast.error("Por favor, anexe o comprovante do PIX para continuar.");
       return;
     }
 
@@ -446,91 +446,64 @@ export function PurchaseFlow({
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="paymentMethodId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Forma de pagamento</FormLabel>
-                <FormControl>
-                  <select
-                    {...field}
-                    className="border-input focus-visible:border-ring focus-visible:ring-ring/50 h-9 w-full rounded-lg border bg-transparent px-2.5 text-sm outline-none focus-visible:ring-3"
-                  >
-                    <option value="">Selecione…</option>
-                    {paymentOptions.map((m) => (
-                      <option key={m.id} value={m.id ?? ""}>
-                        {m.name}
-                      </option>
-                    ))}
-                  </select>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
+          <input
+            type="hidden"
+            {...form.register("paymentMethodId")}
+            value={pixMethod?.id ?? ""}
           />
 
-          {isPix ? (
-            <div className="border-border bg-secondary/60 grid gap-3 rounded-lg border border-dashed p-3.5">
-              <div>
-                <p className="text-sm font-medium">Pagamento via PIX</p>
-                <p className="text-muted-foreground text-xs mt-0.5">
-                  {pixCode
-                    ? "Copie o código abaixo e cole no seu banco na opção 'Pix Copia e Cola'. O valor exato já vem preenchido!"
-                    : pixInfo?.key
-                    ? `Faça a transferência para a chave Pix: ${pixInfo.key}`
-                    : "Chave Pix a ser informada pela comissão. Entre em contato se necessário."}
-                </p>
-              </div>
-
-              {pixCode || pixInfo?.key ? (
-                <div className="flex items-center gap-2">
-                  <Input
-                    readOnly
-                    value={pixCode || pixInfo?.key}
-                    className="font-mono text-xs bg-background select-all"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleCopyPix}
-                    className="shrink-0"
-                  >
-                    {copied ? "Copiado! ✓" : "Copiar Código"}
-                  </Button>
-                </div>
-              ) : null}
-
-              <div className="receipt-divider pt-2 grid gap-1.5">
-                <label className="text-sm font-medium">Anexar comprovante do PIX</label>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,application/pdf"
-                  onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
-                  className="text-muted-foreground file:bg-card file:text-foreground file:border-border text-xs file:mr-3 file:rounded-md file:border file:px-2.5 file:py-1.5 file:text-xs file:font-medium"
-                />
-                {uploading ? (
-                  <p className="text-pending text-xs font-medium">Enviando comprovante…</p>
-                ) : null}
-                {attachmentId ? (
-                  <p className="text-confirmed flex items-center gap-1 text-xs font-medium">
-                    <span aria-hidden>✓</span> Comprovante anexado
-                  </p>
-                ) : null}
-              </div>
+          <div className="border-border bg-secondary/60 grid gap-3 rounded-lg border border-dashed p-3.5">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-semibold">Pagamento via PIX</p>
+              <span className="text-confirmed text-xs font-medium">✓ Forma exclusiva</span>
             </div>
-          ) : selectedPaymentMethod ? (
-            <label className="border-border bg-secondary/60 flex items-start gap-2.5 rounded-lg border border-dashed p-3.5 text-sm">
+            <p className="text-muted-foreground text-xs mt-0.5">
+              {pixCode
+                ? "Copie o código abaixo e cole no seu banco na opção 'Pix Copia e Cola'. O valor exato já vem preenchido!"
+                : pixInfo?.key
+                ? `Faça a transferência para a chave Pix: ${pixInfo.key}`
+                : "Chave Pix a ser informada pela comissão. Entre em contato se necessário."}
+            </p>
+
+            {pixCode || pixInfo?.key ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  readOnly
+                  value={pixCode || pixInfo?.key}
+                  className="font-mono text-xs bg-background select-all"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCopyPix}
+                  className="shrink-0"
+                >
+                  {copied ? "Copiado! ✓" : "Copiar Código"}
+                </Button>
+              </div>
+            ) : null}
+
+            <div className="receipt-divider pt-2 grid gap-1.5">
+              <label className="text-sm font-medium">
+                Anexar comprovante do PIX {sellerName ? "(opcional para vendedor)" : "(obrigatório)"}
+              </label>
               <input
-                type="checkbox"
-                checked={cashConfirmed}
-                onChange={(e) => setCashConfirmed(e.target.checked)}
-                className="accent-primary mt-0.5"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,application/pdf"
+                onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
+                className="text-muted-foreground file:bg-card file:text-foreground file:border-border text-xs file:mr-3 file:rounded-md file:border file:px-2.5 file:py-1.5 file:text-xs file:font-medium"
               />
-              Confirmo que farei o pagamento em mãos com a comissão.
-            </label>
-          ) : null}
+              {uploading ? (
+                <p className="text-pending text-xs font-medium">Enviando comprovante…</p>
+              ) : null}
+              {attachmentId ? (
+                <p className="text-confirmed flex items-center gap-1 text-xs font-medium">
+                  <span aria-hidden>✓</span> Comprovante anexado
+                </p>
+              ) : null}
+            </div>
+          </div>
 
           <Button type="submit" size="lg" disabled={submitting || uploading}>
             {submitting
