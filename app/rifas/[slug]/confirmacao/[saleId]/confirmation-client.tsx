@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { LinkButton } from "@/components/ui/link-button";
 import { centsToBRL } from "@/lib/money";
 import type { SaleReceipt } from "@/lib/schemas/checkout";
+import { fetchSaleReceipt } from "./actions";
 
 function ReceiptRow({
   label,
@@ -37,12 +38,31 @@ export function ConfirmationClient({
   );
 
   useEffect(() => {
-    // sessionStorage isn't available during SSR, so this can't be a lazy
-    // useState initializer — it has to run after mount.
     const raw = sessionStorage.getItem(`receipt:${saleId}`);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setReceipt(raw ? JSON.parse(raw) : null);
-  }, [saleId]);
+    if (raw) {
+      try {
+        setReceipt(JSON.parse(raw));
+        return;
+      } catch {
+        // Falha no parse, tenta buscar no servidor
+      }
+    }
+
+    let isMounted = true;
+    fetchSaleReceipt(saleId, slug).then((serverReceipt) => {
+      if (!isMounted) return;
+      if (serverReceipt) {
+        sessionStorage.setItem(`receipt:${saleId}`, JSON.stringify(serverReceipt));
+        setReceipt(serverReceipt);
+      } else {
+        setReceipt(null);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [saleId, slug]);
 
   function copyToClipboard() {
     if (!receipt) return;
@@ -58,18 +78,19 @@ export function ConfirmationClient({
   }
 
   if (receipt === undefined) {
-    return null;
+    return (
+      <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center p-6 text-center">
+        <p className="text-muted-foreground text-sm">Carregando dados do comprovante…</p>
+      </main>
+    );
   }
 
   if (receipt === null) {
     return (
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center p-6 text-center">
-        <h1 className="text-xl font-semibold">Registro concluído</h1>
+        <h1 className="text-xl font-semibold">Comprovante não encontrado</h1>
         <p className="text-muted-foreground mt-2 text-sm">
-          Sua compra foi registrada com sucesso. Se você atualizou a página ou
-          abriu este link em outro dispositivo, não temos mais os detalhes
-          aqui para exibir — guarde a confirmação que apareceu no momento da
-          compra.
+          Não foi possível carregar os detalhes desta compra. Se você concluiu o pagamento recentemente, os dados foram gravados com sucesso.
         </p>
         <LinkButton className="mt-6" href={`/rifas/${slug}`}>
           Voltar para a rifa

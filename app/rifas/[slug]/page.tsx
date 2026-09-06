@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentProfile } from "@/lib/auth/session";
+import { LinkButton } from "@/components/ui/link-button";
 import { PurchaseFlow } from "./purchase-flow";
 import { centsToBRL } from "@/lib/money";
 import { getReservationTtlMinutes, getPixInfo } from "@/lib/settings";
@@ -54,17 +56,38 @@ async function RaffleContent({
 }) {
   const { slug } = await params;
 
-  const [raffle, paymentMethods, reservationTtlMinutes, pixInfo] = await Promise.all([
+  const [raffle, paymentMethods, reservationTtlMinutes, pixInfo, profile] = await Promise.all([
     getPublicRaffleBySlug(slug),
     getPublicPaymentMethods(),
     getReservationTtlMinutes(),
     getPixInfo(),
+    getCurrentProfile(),
   ]);
 
   if (!raffle) notFound();
 
   return (
     <main className="mx-auto w-full max-w-4xl flex-1 p-4 py-8 sm:p-8">
+      {profile ? (
+        <aside
+          aria-label="Informações do vendedor conectado"
+          className="border-confirmed/40 bg-confirmed-bg text-confirmed mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3.5 text-sm"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="text-xl" aria-hidden="true">👤</span>
+            <div>
+              <p className="font-semibold text-foreground">Modo Vendedor Ativo</p>
+              <p className="text-muted-foreground text-xs">
+                Conectado como <strong className="text-foreground">{profile.full_name}</strong>. As vendas realizadas aqui serão vinculadas a você e confirmadas automaticamente.
+              </p>
+            </div>
+          </div>
+          <LinkButton variant="outline" size="sm" href="/admin/rifas">
+            Painel Admin
+          </LinkButton>
+        </aside>
+      ) : null}
+
       {raffle.image_url ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -120,6 +143,7 @@ async function RaffleContent({
           paymentMethods={paymentMethods}
           reservationTtlMinutes={reservationTtlMinutes}
           pixInfo={pixInfo}
+          sellerName={profile?.full_name ?? null}
         />
       )}
 

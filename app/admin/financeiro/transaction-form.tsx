@@ -133,9 +133,9 @@ export function TransactionForm({
             name="supplierName"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Fornecedor (opcional)</FormLabel>
+                <FormLabel>Fornecedor / Beneficiário (opcional)</FormLabel>
                 <FormControl>
-                  <Input {...field} />
+                  <Input {...field} placeholder="ex: Buffet, DJ, Gráfica, Decoração" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -169,7 +169,7 @@ export function TransactionForm({
                     {...field}
                     className="border-input h-8 w-full rounded-lg border bg-transparent px-2.5 text-sm outline-none"
                   >
-                    <option value="">—</option>
+                    <option value="">Não especificada / Selecione...</option>
                     {paymentMethods.map((m) => (
                       <option key={m.id} value={m.id}>
                         {m.name}
@@ -188,9 +188,20 @@ export function TransactionForm({
           name="origin"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Origem (opcional)</FormLabel>
+              <FormLabel>
+                {type === "INCOME"
+                  ? "Fonte pagadora / Origem (opcional)"
+                  : "Origem dos recursos / Conta (opcional)"}
+              </FormLabel>
               <FormControl>
-                <Input {...field} />
+                <Input
+                  {...field}
+                  placeholder={
+                    type === "INCOME"
+                      ? "ex: Barraca de doces, Patrocínio X, Doação"
+                      : "ex: Caixa físico da turma, Conta Pix"
+                  }
+                />
               </FormControl>
               <FormMessage />
             </FormItem>

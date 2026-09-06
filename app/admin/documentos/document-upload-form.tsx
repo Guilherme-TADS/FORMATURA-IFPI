@@ -97,7 +97,7 @@ export function DocumentUploadForm({
 
         <div className="grid gap-1">
           <label className="text-sm font-medium" htmlFor="doc-entity-type">
-            Vincular a
+            Vincular este documento a:
           </label>
           <select
             id="doc-entity-type"
@@ -108,16 +108,16 @@ export function DocumentUploadForm({
             }}
             className="border-input h-9 rounded-lg border bg-transparent px-2.5 text-sm outline-none"
           >
-            <option value="">Nenhum (documento avulso)</option>
-            <option value="raffle">Rifa</option>
-            <option value="financial_transaction">Lançamento financeiro</option>
+            <option value="">Nenhum (documento geral da comissão)</option>
+            <option value="raffle">Rifa específica</option>
+            <option value="financial_transaction">Lançamento financeiro (receita ou despesa)</option>
           </select>
         </div>
 
         {entityType ? (
           <div className="grid gap-1">
             <label className="text-sm font-medium" htmlFor="doc-entity-id">
-              {entityType === "raffle" ? "Rifa" : "Lançamento"}
+              {entityType === "raffle" ? "Selecione a Rifa" : "Selecione o Lançamento"}
             </label>
             <select
               id="doc-entity-id"

@@ -59,13 +59,13 @@ export type DocumentEntityType = (typeof DOCUMENT_ENTITY_TYPES)[number];
 
 export const ATTACHMENT_KIND_LABELS: Record<AttachmentKind, string> = {
   comprovante: "Comprovante de pagamento",
-  nota_fiscal: "Nota fiscal",
-  contrato: "Contrato",
-  orcamento: "Orçamento",
-  recibo: "Recibo",
-  imagem: "Imagem",
-  documento: "Documento",
-  outro: "Outro",
+  nota_fiscal: "Nota Fiscal / Cupom fiscal",
+  contrato: "Contrato / Termo de adesão",
+  orcamento: "Orçamento de fornecedor",
+  recibo: "Recibo de pagamento assinado",
+  imagem: "Foto / Imagem avulsa",
+  documento: "Documento oficial / Ata / Estatuto",
+  outro: "Outro documento",
 };
 
 export const ATTACHMENT_STATUS_LABELS: Record<string, string> = {

@@ -99,7 +99,7 @@ export function RaffleForm({
           name="slug"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Identificador (URL pública)</FormLabel>
+              <FormLabel>Link da rifa no site (URL)</FormLabel>
               <FormControl>
                 <Input
                   {...field}
@@ -107,8 +107,12 @@ export function RaffleForm({
                     setSlugTouched(true);
                     field.onChange(e);
                   }}
+                  placeholder="ex: rifa-notebook-2026"
                 />
               </FormControl>
+              <p className="text-muted-foreground text-xs">
+                Endereço da página da rifa. Gerado automaticamente a partir do título (apenas letras minúsculas, números e hífens).
+              </p>
               <FormMessage />
             </FormItem>
           )}
@@ -187,7 +191,7 @@ export function RaffleForm({
                 </FormControl>
                 {isEditing ? (
                   <p className="text-muted-foreground text-xs">
-                    Não é possível alterar após a criação.
+                    A quantidade não pode ser alterada após a criação pois os bilhetes já foram gerados no banco de dados.
                   </p>
                 ) : null}
                 <FormMessage />
@@ -245,10 +249,13 @@ export function RaffleForm({
           name="googleSheetUrl"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Planilha de conferência (opcional)</FormLabel>
+              <FormLabel>Planilha de conferência pública (opcional)</FormLabel>
               <FormControl>
-                <Input {...field} placeholder="https://docs.google.com/..." />
+                <Input {...field} placeholder="https://docs.google.com/spreadsheets/d/..." />
               </FormControl>
+              <p className="text-muted-foreground text-xs">
+                Cole o link de uma planilha pública do Google Sheets se desejar disponibilizar para os compradores conferirem a lista de bilhetes.
+              </p>
               <FormMessage />
             </FormItem>
           )}

@@ -100,6 +100,9 @@ export function SettingsForm({
               value={ttlMinutes}
               onChange={(e) => setTtlMinutes(e.target.value)}
             />
+            <p className="text-muted-foreground text-xs">
+              Tempo para o comprador pagar via Pix e anexar o comprovante antes dos números expirarem e voltarem a ficar disponíveis.
+            </p>
           </div>
           <div className="grid gap-1">
             <label className="text-sm font-medium" htmlFor="max-upload">

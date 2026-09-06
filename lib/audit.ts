@@ -5,6 +5,7 @@
 export const AUDIT_ACTION_LABELS: Record<string, string> = {
   RESERVE: "Números reservados",
   SALE_CONFIRMED: "Venda confirmada",
+  SALE_APPROVED: "Venda aprovada pelo tesoureiro",
   SALE_CANCELLED: "Venda cancelada",
   RAFFLE_CLOSED: "Rifa encerrada",
   RAFFLE_CANCELLED: "Rifa cancelada",

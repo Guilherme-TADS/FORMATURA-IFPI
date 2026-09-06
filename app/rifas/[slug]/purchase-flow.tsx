@@ -42,6 +42,7 @@ export function PurchaseFlow({
   paymentMethods,
   reservationTtlMinutes,
   pixInfo,
+  sellerName,
 }: {
   raffleId: string;
   raffleSlug: string;
@@ -49,6 +50,7 @@ export function PurchaseFlow({
   paymentMethods: PaymentMethod[];
   reservationTtlMinutes: number;
   pixInfo?: PixInfo;
+  sellerName?: string | null;
 }) {
   const router = useRouter();
   const storageKey = `${RESERVATION_STORAGE_KEY_PREFIX}${raffleId}`;
@@ -205,7 +207,7 @@ export function PurchaseFlow({
     if (!reservation) return;
     if (
       !window.confirm(
-        "Deseja cancelar sua reserva e liberar estes números para outros compradores?",
+        "Deseja liberar estes números para outros compradores?",
       )
     ) {
       return;
@@ -218,7 +220,7 @@ export function PurchaseFlow({
       setSelected([]);
       setAttachmentId(null);
       setGridRefreshKey((k) => k + 1);
-      toast.success("Reserva cancelada e números liberados.");
+      toast.success("Números liberados com sucesso.");
     } catch {
       toast.error("Não foi possível liberar os números. Tente novamente.");
     } finally {
@@ -303,7 +305,7 @@ export function PurchaseFlow({
     const receipt = data as SaleReceipt;
     const receiptWithStatus: SaleReceipt = {
       ...receipt,
-      status: "PENDING",
+      status: (receipt.status as SaleReceipt["status"]) ?? (sellerName ? "CONFIRMED" : "PENDING"),
     };
     sessionStorage.setItem(`receipt:${receipt.saleId}`, JSON.stringify(receiptWithStatus));
     sessionStorage.removeItem(storageKey);
@@ -384,7 +386,7 @@ export function PurchaseFlow({
             onClick={handleCancelReservation}
             className="hover:bg-current/10 hover:text-current font-medium text-xs underline"
           >
-            {cancellingReservation ? "Liberando…" : "Cancelar reserva"}
+            {cancellingReservation ? "Liberando…" : "Liberar estes números"}
           </Button>
         </div>
       </div>
@@ -531,7 +533,11 @@ export function PurchaseFlow({
           ) : null}
 
           <Button type="submit" size="lg" disabled={submitting || uploading}>
-            {submitting ? "Finalizando…" : "Finalizar registro"}
+            {submitting
+              ? "Processando…"
+              : sellerName
+                ? "Confirmar Venda (Vendedor)"
+                : "Confirmar Compra"}
           </Button>
         </form>
       </Form>
