@@ -1,0 +1,1 @@
+-- Arquivo de seed limpo (sem dados de teste)

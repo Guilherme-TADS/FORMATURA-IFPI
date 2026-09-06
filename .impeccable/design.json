@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-19T00:00:00.000Z",
+  "title": "Design System: Comissão de Formatura — Tesouraria & Rifas",
+  "extensions": {
+    "colorMeta": {
+      "paper": { "role": "neutral", "displayName": "Warm Paper", "canonical": "oklch(0.965 0.010 85)" },
+      "paper-lifted": { "role": "neutral", "displayName": "Paper, Lifted", "canonical": "oklch(0.995 0.006 88)" },
+      "ink": { "role": "neutral", "displayName": "Graphite Ink", "canonical": "oklch(0.24 0.015 85)" },
+      "ink-muted": { "role": "neutral", "displayName": "Ink, Muted", "canonical": "oklch(0.48 0.018 85)" },
+      "paper-shadow": { "role": "neutral", "displayName": "Paper Shadow", "canonical": "oklch(0.93 0.012 85)" },
+      "hairline": { "role": "neutral", "displayName": "Hairline", "canonical": "oklch(0.86 0.014 85)" },
+      "emerald": { "role": "primary", "displayName": "Institutional Emerald", "canonical": "oklch(0.42 0.11 160)" },
+      "emerald-ink": { "role": "primary", "displayName": "Emerald Ink", "canonical": "oklch(0.99 0.01 160)" },
+      "amber": { "role": "secondary", "displayName": "Pending Amber", "canonical": "oklch(0.5 0.13 75)" },
+      "amber-bg": { "role": "secondary", "displayName": "Amber Paper", "canonical": "oklch(0.93 0.06 80)" },
+      "brick": { "role": "tertiary", "displayName": "Void Brick", "canonical": "oklch(0.48 0.16 30)" },
+      "brick-bg": { "role": "tertiary", "displayName": "Brick Paper", "canonical": "oklch(0.92 0.04 35)" }
+    },
+    "typographyMeta": {
+      "body": { "displayName": "Body", "purpose": "Paragraph copy, form labels, descriptions." },
+      "label": { "displayName": "Label", "purpose": "Uppercase small-caps caption on stat tiles, table headers, receipt rows (.label-tag)." },
+      "figures": { "displayName": "Figures", "purpose": "Money, dates, IDs, raffle numbers — tabular Geist Mono, never proportional (.font-figures)." }
+    },
+    "shadows": [
+      { "name": "sticky-lift", "value": "0 4px 16px -4px oklch(0.3 0.02 85 / 0.25)", "purpose": "Reservation summary bar pinned to the bottom of the purchase flow." },
+      { "name": "receipt-lift", "value": "0 1px 2px oklch(0.3 0.02 85 / 0.08), 0 16px 32px -16px oklch(0.3 0.02 85 / 0.28)", "purpose": "Confirmation receipt card — soft two-layer shadow, never a hard offset." },
+      { "name": "selected-stub-lift", "value": "0 3px 8px -2px var(--primary)", "purpose": "A selected raffle number stub, combined with a 2px upward translate." },
+      { "name": "hairline-ring", "value": "0 0 0 1px oklch(0.24 0.015 85 / 0.08)", "purpose": "Default card depth at rest — a ring, not a shadow." }
+    ],
+    "motion": [
+      { "name": "stub-pulse", "value": "box-shadow ripple, 0.9s ease-out, expanding from currentColor at 55% to 0% opacity", "purpose": "One-shot ripple when a raffle number's status changes live while a buyer is looking at the grid." },
+      { "name": "stamp-in", "value": "cubic-bezier(0.16, 1, 0.3, 1), 0.5s, scale 1.6→0.92→1 with rotate -8deg→-2deg", "purpose": "The confirmed-state stamp landing with a slight overshoot, like a rubber stamp striking paper." },
+      { "name": "receipt-feed", "value": "cubic-bezier(0.16, 1, 0.3, 1), 0.6s, clip-path inset top-to-bottom reveal", "purpose": "The confirmation receipt's one authored entrance moment, like a thermal printer feeding paper." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Solid emerald action button — reservations, confirmations, submits.",
+      "html": "<button class=\"ds-btn-primary\">Reservar e continuar</button>",
+      "css": ".ds-btn-primary { background: oklch(0.42 0.11 160); color: oklch(0.99 0.01 160); padding: 0.5rem 1rem; border-radius: 0.5rem; border: none; font-weight: 500; font-size: 0.875rem; transition: filter 0.15s; } .ds-btn-primary:hover { filter: brightness(1.06); } .ds-btn-primary:focus-visible { outline: 2px solid oklch(0.55 0.1 160); outline-offset: 2px; } .ds-btn-primary:disabled { opacity: 0.5; }"
+    },
+    {
+      "name": "Stamp Badge — Confirmed",
+      "kind": "chip",
+      "refersTo": "badge-confirmed",
+      "description": "The confirmed-state signature mark: rotated, bordered, never a soft pill.",
+      "html": "<span class=\"ds-stamp ds-stamp-confirmed\">&#10003; Confirmado</span>",
+      "css": ".ds-stamp { display: inline-flex; align-items: center; gap: 0.3em; border: 1.5px solid currentColor; border-radius: 0.3rem; padding: 0.1em 0.55em; transform: rotate(-2deg); font-size: 0.8rem; font-weight: 600; } .ds-stamp-confirmed { color: oklch(0.42 0.11 160); }"
+    },
+    {
+      "name": "Stamp Badge — Pending / Void",
+      "kind": "chip",
+      "refersTo": "badge-pending",
+      "description": "The other two states in the status vocabulary, same stamp shape, different hue.",
+      "html": "<span class=\"ds-stamp ds-stamp-pending\">Reservado</span> <span class=\"ds-stamp ds-stamp-void\">Cancelado</span>",
+      "css": ".ds-stamp { display: inline-flex; align-items: center; gap: 0.3em; border: 1.5px solid currentColor; border-radius: 0.3rem; padding: 0.1em 0.55em; transform: rotate(-2deg); font-size: 0.8rem; font-weight: 600; } .ds-stamp-pending { color: oklch(0.5 0.13 75); } .ds-stamp-void { color: oklch(0.48 0.16 30); }"
+    },
+    {
+      "name": "Raffle Number Stub",
+      "kind": "custom",
+      "refersTo": "number-grid-stub",
+      "description": "The signature component: a ticket-stub button showing a tabular number over its status caption.",
+      "html": "<button class=\"ds-stub ds-stub-confirmed\"><span class=\"ds-stub-num\">42</span><span class=\"ds-stub-label\">Vendido</span></button>",
+      "css": ".ds-stub { display: flex; flex-direction: column; align-items: center; border-radius: 0.4rem; border: 1px solid; padding: 0.625rem 0; font-family: ui-monospace, \"Geist Mono\"; } .ds-stub-num { font-size: 0.875rem; font-weight: 600; font-variant-numeric: tabular-nums; } .ds-stub-label { margin-top: 0.125rem; font-size: 0.5625rem; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; opacity: 0.7; } .ds-stub-confirmed { background: oklch(0.93 0.045 160); border-color: oklch(0.42 0.11 160 / 0.4); color: oklch(0.42 0.11 160); }"
+    },
+    {
+      "name": "Stat Strip",
+      "kind": "card",
+      "refersTo": "stat-strip",
+      "description": "One bordered card split with dashed dividers — replaces N separately bordered KPI tiles.",
+      "html": "<div class=\"ds-stat-strip\"><div class=\"ds-stat-cell\"><p class=\"ds-label\">Saldo</p><p class=\"ds-figure\">R$ 770,00</p></div><div class=\"ds-stat-cell\"><p class=\"ds-label\">Rifas ativas</p><p class=\"ds-figure\">1</p></div></div>",
+      "css": ".ds-stat-strip { display: grid; grid-template-columns: repeat(2, 1fr); background: oklch(0.995 0.006 88); border: 1px solid oklch(0.86 0.014 85); border-radius: 0.5rem; overflow: hidden; } .ds-stat-cell { padding: 1rem; border-left: 1px dashed oklch(0.86 0.014 85); } .ds-stat-cell:first-child { border-left: none; } .ds-label { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: oklch(0.48 0.018 85); } .ds-figure { margin-top: 0.25rem; font-size: 1.25rem; font-weight: 600; font-family: ui-monospace, \"Geist Mono\"; font-variant-numeric: tabular-nums; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Comprovante",
+    "overview": "This is a paper-and-ink system built from the physical vocabulary of a printed receipt sitting on a desk. Every confirmed action earns the same visual event a real receipt gets: a stamp, a dashed tear-line, a row of tabular figures that never wobble. The system replaces a generic admin-panel look with something that reads as evidence — a comprovante the committee and the buyer can both trust at a glance, because the buyer-facing raffle store and the committee's internal ledger are the same physical object seen from two sides of the counter. The ground is warm, slightly cream paper because paper has a hue; cards render a shade lighter than the page, catching light, lifted off the desk. Confirmed state reuses the brand emerald directly; pending and void are their own hues, not desaturated variants of it.",
+    "keyCharacteristics": [
+      "Warm paper ground, graphite ink, one brand emerald that never dilutes into a generic accent blue",
+      "Dashed rules stand in for a receipt's perforated tear-line everywhere a divider is needed",
+      "Tabular Geist Mono for every number, date, and ID — money never wobbles in weight",
+      "A rotated, bordered stamp mark is the one signature confirmed-state device, reused identically on the buyer's receipt and the committee's status badges",
+      "Depth from a hairline ring, not drop shadows; shadows are reserved for things that are physically lifted"
+    ],
+    "rules": [
+      { "name": "The One Ledger Rule", "body": "Confirmed, pending, and void are the only three status colors in the system. A new status reuses one of the three semantically rather than introducing a fourth hue.", "section": "colors" },
+      { "name": "The Tabular Money Rule", "body": "Any number a person might scan down a column — money, quantities, dates — renders in .font-figures. A proportional-figure amount next to a tabular one is always a defect.", "section": "typography" },
+      { "name": "The Min-Width-Zero Rule", "body": "The admin shell's content column carries min-w-0. Without it, a single wide table blows out the entire flex row on narrow viewports instead of scrolling inside its own overflow-x-auto wrapper — a real, shipped bug this system already hit once.", "section": "layout" },
+      { "name": "The Grid-Cols-1 Rule", "body": "Any container using a responsive column count declares its base column count explicitly, never a bare grid. An implicit single-column grid track sizes to auto (max-content), so a truncate list item inside it silently forces the whole page wider than the viewport — a second real, shipped bug this system hit.", "section": "layout" },
+      { "name": "No Flat Shadows", "body": "This world is not neobrutalist. A box-shadow always carries blur; a zero-blur offset block shadow is a costume this system does not wear.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do render every money amount, date, ID fragment, and raffle number in .font-figures.",
+      "Do use .receipt-divider (dashed) for row and section separators instead of solid border-b.",
+      "Do collapse a KPI row into one divide-dashed card instead of N separately bordered stat tiles.",
+      "Do give the admin shell's content column min-w-0, and give every responsive grid an explicit grid-cols-1 base.",
+      "Do use grid-cols-[repeat(auto-fit,minmax(Npx,1fr))] for card grids that might render a single item.",
+      "Do use the stamp badge mode for any confirmed/void state that is the point of the row."
+    ],
+    "donts": [
+      "Don't use a flat, zero-blur box-shadow — this world's depth is a hairline ring plus soft blur, never a hard offset.",
+      "Don't put a kicker or eyebrow label directly above a heading as a category tag.",
+      "Don't use a colored border-left/border-right on cards, list items, or alerts.",
+      "Don't repeat the icon-plus-heading-plus-text card as page scaffolding.",
+      "Don't introduce a fourth status color."
+    ]
+  }
+}
