@@ -21,6 +21,7 @@ import { centsToBRL } from "@/lib/money";
 import { buyerFormSchema, type SaleReceipt } from "@/lib/schemas/checkout";
 import { generatePixPayload } from "@/lib/pix";
 import type { PixInfo } from "@/lib/settings";
+import { PixQrCode } from "@/components/pix-qr-code";
 import { NumberGrid } from "./number-grid";
 import { releaseReservation } from "./actions";
 
@@ -90,7 +91,6 @@ export function PurchaseFlow({
     }
   }, [pixMethod, form]);
 
-  const [copied, setCopied] = useState(false);
   const totalCents = selected.length * unitPriceCents;
 
   const pixCode = useMemo(() => {
@@ -103,15 +103,6 @@ export function PurchaseFlow({
       txId: `RIFA${reservation.pointNumbers[0] ?? ""}`,
     });
   }, [pixInfo, reservation, totalCents]);
-
-  function handleCopyPix() {
-    const textToCopy = pixCode || pixInfo?.key;
-    if (!textToCopy) return;
-    navigator.clipboard.writeText(textToCopy);
-    setCopied(true);
-    toast.success(pixCode ? "Código Pix Copia e Cola copiado!" : "Chave Pix copiada!");
-    setTimeout(() => setCopied(false), 3000);
-  }
 
   // Resume an in-flight reservation across a page refresh instead of
   // silently orphaning it until the cron sweep releases it.
@@ -452,57 +443,33 @@ export function PurchaseFlow({
             value={pixMethod?.id ?? ""}
           />
 
-          <div className="border-border bg-secondary/60 grid gap-3 rounded-lg border border-dashed p-3.5">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-semibold">Pagamento via PIX</p>
-              <span className="text-confirmed text-xs font-medium">✓ Forma exclusiva</span>
-            </div>
-            <p className="text-muted-foreground text-xs mt-0.5">
-              {pixCode
-                ? "Copie o código abaixo e cole no seu banco na opção 'Pix Copia e Cola'. O valor exato já vem preenchido!"
-                : pixInfo?.key
-                ? `Faça a transferência para a chave Pix: ${pixInfo.key}`
-                : "Chave Pix a ser informada pela comissão. Entre em contato se necessário."}
+          <PixQrCode
+            code={pixCode}
+            amountCents={totalCents}
+            pixKey={pixInfo?.key}
+          />
+
+          <div className="border-border bg-secondary/40 grid gap-1.5 rounded-lg border border-dashed p-3.5">
+            <label className="text-sm font-medium">
+              Anexar comprovante do PIX {sellerName ? "(opcional para vendedor)" : "(obrigatório)"}
+            </label>
+            <p className="text-muted-foreground text-xs">
+              Após realizar o pagamento do valor exato, anexe o comprovante (foto ou PDF) abaixo para validação.
             </p>
-
-            {pixCode || pixInfo?.key ? (
-              <div className="flex items-center gap-2">
-                <Input
-                  readOnly
-                  value={pixCode || pixInfo?.key}
-                  className="font-mono text-xs bg-background select-all"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCopyPix}
-                  className="shrink-0"
-                >
-                  {copied ? "Copiado! ✓" : "Copiar Código"}
-                </Button>
-              </div>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+              onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
+              className="text-muted-foreground file:bg-card file:text-foreground file:border-border mt-1 text-xs file:mr-3 file:rounded-md file:border file:px-2.5 file:py-1.5 file:text-xs file:font-medium"
+            />
+            {uploading ? (
+              <p className="text-pending text-xs font-medium">Enviando comprovante…</p>
             ) : null}
-
-            <div className="receipt-divider pt-2 grid gap-1.5">
-              <label className="text-sm font-medium">
-                Anexar comprovante do PIX {sellerName ? "(opcional para vendedor)" : "(obrigatório)"}
-              </label>
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp,application/pdf"
-                onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
-                className="text-muted-foreground file:bg-card file:text-foreground file:border-border text-xs file:mr-3 file:rounded-md file:border file:px-2.5 file:py-1.5 file:text-xs file:font-medium"
-              />
-              {uploading ? (
-                <p className="text-pending text-xs font-medium">Enviando comprovante…</p>
-              ) : null}
-              {attachmentId ? (
-                <p className="text-confirmed flex items-center gap-1 text-xs font-medium">
-                  <span aria-hidden>✓</span> Comprovante anexado
-                </p>
-              ) : null}
-            </div>
+            {attachmentId ? (
+              <p className="text-confirmed flex items-center gap-1 text-xs font-medium">
+                <span aria-hidden>✓</span> Comprovante anexado
+              </p>
+            ) : null}
           </div>
 
           <Button type="submit" size="lg" disabled={submitting || uploading}>
