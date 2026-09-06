@@ -3,10 +3,17 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Pencil, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import type { Database } from "@/types/database";
-import { toggleUserActive, updateUserRole, deleteUser } from "./actions";
+import {
+  toggleUserActive,
+  updateUserRole,
+  deleteUser,
+  updateUserProfile,
+} from "./actions";
 
 type Role = Database["public"]["Enums"]["user_role"];
 
@@ -19,6 +26,7 @@ const ROLE_LABELS: Record<Role, string> = {
 export function UserRow({
   id,
   fullName,
+  phone,
   email,
   role,
   active,
@@ -27,6 +35,7 @@ export function UserRow({
 }: {
   id: string;
   fullName: string;
+  phone: string | null;
   email: string | null;
   role: Role;
   active: boolean;
@@ -36,6 +45,24 @@ export function UserRow({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [localRole, setLocalRole] = useState(role);
+
+  // Edit states
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(fullName);
+  const [editPhone, setEditPhone] = useState(phone ?? "");
+
+  function handleSaveProfile() {
+    startTransition(async () => {
+      const result = await updateUserProfile(id, editName, editPhone);
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Dados do usuário atualizados.");
+      setIsEditing(false);
+      router.refresh();
+    });
+  }
 
   function handleRoleChange(newRole: Role) {
     setLocalRole(newRole);
@@ -83,11 +110,62 @@ export function UserRow({
   return (
     <tr className="border-border border-b border-dashed last:border-0">
       <td className="py-2.5 pr-4">
-        <div className="font-medium">
-          {fullName}
-          {isSelf ? <span className="text-muted-foreground text-xs"> (você)</span> : null}
-        </div>
-        <div className="text-muted-foreground text-xs">{email ?? "—"}</div>
+        {isEditing ? (
+          <div className="flex flex-col gap-1.5 py-1">
+            <Input
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              placeholder="Nome completo"
+              disabled={pending}
+              className="h-7 text-xs"
+            />
+            <Input
+              value={editPhone}
+              onChange={(e) => setEditPhone(e.target.value)}
+              placeholder="Telefone / Celular"
+              disabled={pending}
+              className="h-7 text-xs"
+            />
+            <div className="flex items-center gap-1 mt-0.5">
+              <Button
+                type="button"
+                size="xs"
+                disabled={pending}
+                onClick={handleSaveProfile}
+                className="h-6 px-2 text-xs"
+              >
+                <Check className="size-3 mr-1" /> Salvar
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                disabled={pending}
+                onClick={() => {
+                  setEditName(fullName);
+                  setEditPhone(phone ?? "");
+                  setIsEditing(false);
+                }}
+                className="h-6 px-2 text-xs"
+              >
+                <X className="size-3 mr-1" /> Cancelar
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <div className="font-medium">
+              {fullName}
+              {isSelf ? (
+                <span className="text-muted-foreground text-xs"> (você)</span>
+              ) : null}
+            </div>
+            <div className="text-muted-foreground text-xs">
+              {email ?? "—"}
+              {phone ? ` · ${phone}` : ""}
+            </div>
+          </div>
+        )}
       </td>
       <td className="py-2.5 pr-4">
         {isSelf ? (
@@ -116,27 +194,42 @@ export function UserRow({
         {new Date(createdAt).toLocaleDateString("pt-BR")}
       </td>
       <td className="py-2.5 pr-4">
-        {isSelf ? null : (
-          <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5">
+          {!isEditing ? (
             <Button
+              type="button"
               variant="outline"
               size="sm"
               disabled={pending}
-              onClick={handleToggleActive}
+              onClick={() => setIsEditing(true)}
+              title="Editar dados cadastrais"
             >
-              {active ? "Desativar" : "Reativar"}
+              <Pencil className="size-3.5" />
             </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              disabled={pending}
-              onClick={handleDelete}
-              title="Excluir usuário permanentemente"
-            >
-              Excluir
-            </Button>
-          </div>
-        )}
+          ) : null}
+
+          {isSelf ? null : (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={pending}
+                onClick={handleToggleActive}
+              >
+                {active ? "Desativar" : "Reativar"}
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={pending}
+                onClick={handleDelete}
+                title="Excluir usuário permanentemente"
+              >
+                Excluir
+              </Button>
+            </>
+          )}
+        </div>
       </td>
     </tr>
   );

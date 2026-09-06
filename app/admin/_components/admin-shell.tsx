@@ -89,12 +89,18 @@ export function AdminShell({
           <NavLinks items={navItems} pathname={pathname} />
         </div>
         <div className="receipt-divider pt-3">
-          <p className="text-sidebar-foreground truncate text-sm font-medium">
-            {fullName}
-          </p>
-          <Badge variant="outline" stamp className="mt-1.5">
-            {roleLabels[role] ?? role}
-          </Badge>
+          <Link
+            href="/admin/perfil"
+            className="group -m-1 block rounded-md p-1 transition-colors hover:bg-sidebar-accent"
+            title="Ver e editar meu perfil"
+          >
+            <p className="text-sidebar-foreground group-hover:text-primary truncate text-sm font-medium transition-colors">
+              {fullName}
+            </p>
+            <Badge variant="outline" stamp className="mt-1.5">
+              {roleLabels[role] ?? role}
+            </Badge>
+          </Link>
           <form action={signOut} className="mt-3">
             <Button
               type="submit"
@@ -127,10 +133,18 @@ export function AdminShell({
                 />
               </div>
               <div className="receipt-divider mt-6 pt-3">
-                <p className="truncate text-sm font-medium">{fullName}</p>
-                <Badge variant="outline" stamp className="mt-1.5">
-                  {roleLabels[role] ?? role}
-                </Badge>
+                <Link
+                  href="/admin/perfil"
+                  onClick={() => setMobileOpen(false)}
+                  className="group -m-1 block rounded-md p-1 transition-colors hover:bg-sidebar-accent"
+                >
+                  <p className="truncate text-sm font-medium group-hover:text-primary transition-colors">
+                    {fullName}
+                  </p>
+                  <Badge variant="outline" stamp className="mt-1.5">
+                    {roleLabels[role] ?? role}
+                  </Badge>
+                </Link>
                 <form action={signOut} className="mt-3">
                   <Button
                     type="submit"

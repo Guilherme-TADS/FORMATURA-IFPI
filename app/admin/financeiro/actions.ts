@@ -200,3 +200,26 @@ export async function toggleCategoryActive(id: string, active: boolean) {
   revalidatePath("/admin/financeiro/despesas");
 }
 
+export async function updateCategory(id: string, name: string) {
+  const { supabase } = await requireAdmin();
+  const trimmed = name.trim();
+  if (trimmed.length < 2) throw new Error("Nome da categoria muito curto.");
+
+  const { error } = await supabase
+    .from("financial_categories")
+    .update({ name: trimmed })
+    .eq("id", id);
+
+  if (error) {
+    if (error.code === "23505") {
+      throw new Error("Já existe uma categoria com esse nome neste tipo.");
+    }
+    throw new Error("Não foi possível renomear a categoria.");
+  }
+
+  revalidatePath("/admin/financeiro/categorias");
+  revalidatePath("/admin/financeiro/receitas");
+  revalidatePath("/admin/financeiro/despesas");
+}
+
+

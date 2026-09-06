@@ -200,3 +200,52 @@ export async function deleteUser(targetUserId: string): Promise<UserActionState>
   }
 }
 
+export async function updateUserProfile(
+  targetUserId: string,
+  fullName: string,
+  phone?: string,
+): Promise<UserActionState> {
+  const trimmedName = fullName.trim();
+  if (trimmedName.length < 2) {
+    return { error: "Nome deve ter pelo menos 2 caracteres." };
+  }
+
+  try {
+    const { supabase, userId } = await requireAdmin();
+
+    const { data: oldProfile } = await supabase
+      .from("profiles")
+      .select("full_name, phone")
+      .eq("id", targetUserId)
+      .single();
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        full_name: trimmedName,
+        phone: phone ? phone.trim() : null,
+      })
+      .eq("id", targetUserId);
+
+    if (error) return { error: "Não foi possível atualizar os dados do usuário." };
+
+    await supabase.from("audit_logs").insert({
+      action: "USER_PROFILE_UPDATED",
+      entity_type: "user",
+      entity_id: targetUserId,
+      user_id: userId,
+      old_data: oldProfile ?? {},
+      new_data: { full_name: trimmedName, phone: phone ? phone.trim() : null },
+    });
+
+    revalidatePath("/admin/usuarios");
+    return {};
+  } catch (err) {
+    if (err instanceof Error && err.message === "not authorized") {
+      return { error: NOT_ADMIN_MESSAGE };
+    }
+    throw err;
+  }
+}
+
+

@@ -9,6 +9,7 @@ import {
   UserCog,
   Users,
   Wallet,
+  User,
 } from "lucide-react";
 import type { Database } from "@/types/database";
 
@@ -77,6 +78,12 @@ export const navItems: NavItem[] = [
     label: "Configurações",
     icon: Settings,
     roles: ["ADMIN"],
+  },
+  {
+    href: "/admin/perfil",
+    label: "Meu Perfil",
+    icon: User,
+    roles: ["ADMIN", "VENDEDOR", "VISUALIZADOR"],
   },
 ];
 

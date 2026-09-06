@@ -28,7 +28,7 @@ export default async function UsersPage() {
   const [{ data: profiles }, { data: authUsers }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("id, full_name, role, active, created_at")
+      .select("id, full_name, phone, role, active, created_at")
       .order("created_at", { ascending: true }),
     admin.auth.admin.listUsers({ perPage: 200 }),
   ]);
@@ -65,6 +65,7 @@ export default async function UsersPage() {
                   key={p.id}
                   id={p.id}
                   fullName={p.full_name}
+                  phone={p.phone}
                   email={emailById.get(p.id) ?? null}
                   role={p.role}
                   active={p.active}

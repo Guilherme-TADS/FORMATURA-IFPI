@@ -1,12 +1,16 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Trash2, Eye, EyeOff } from "lucide-react";
+import { Trash2, Eye, EyeOff, Pencil, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { deleteCategory, toggleCategoryActive } from "../actions";
+import {
+  deleteCategory,
+  toggleCategoryActive,
+  updateCategory,
+} from "../actions";
 
 export function CategoryItem({
   id,
@@ -19,6 +23,33 @@ export function CategoryItem({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState(name);
+
+  function handleSaveRename() {
+    const trimmed = editName.trim();
+    if (trimmed.length < 2) {
+      toast.error("Nome da categoria muito curto.");
+      return;
+    }
+    if (trimmed === name) {
+      setIsEditing(false);
+      return;
+    }
+
+    startTransition(async () => {
+      try {
+        await updateCategory(id, trimmed);
+        toast.success(`Categoria renomeada para "${trimmed}".`);
+        setIsEditing(false);
+        router.refresh();
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : "Erro ao renomear categoria.",
+        );
+      }
+    });
+  }
 
   function handleToggle() {
     startTransition(async () => {
@@ -61,6 +92,52 @@ export function CategoryItem({
     });
   }
 
+  if (isEditing) {
+    return (
+      <li className="border-primary bg-card flex items-center gap-1.5 rounded-md border px-2 py-1 text-sm shadow-xs">
+        <input
+          type="text"
+          value={editName}
+          onChange={(e) => setEditName(e.target.value)}
+          autoFocus
+          disabled={pending}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleSaveRename();
+            if (e.key === "Escape") {
+              setEditName(name);
+              setIsEditing(false);
+            }
+          }}
+          className="border-input h-6 w-32 rounded border bg-background px-1.5 text-xs outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          disabled={pending}
+          onClick={handleSaveRename}
+          title="Salvar novo nome"
+          className="hover:bg-primary/10 hover:text-primary"
+        >
+          <Check className="size-3 text-primary" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          disabled={pending}
+          onClick={() => {
+            setEditName(name);
+            setIsEditing(false);
+          }}
+          title="Cancelar edição"
+        >
+          <X className="size-3 text-muted-foreground" />
+        </Button>
+      </li>
+    );
+  }
+
   return (
     <li
       className={cn(
@@ -78,6 +155,20 @@ export function CategoryItem({
       ) : null}
 
       <div className="ml-1 flex items-center gap-0.5 opacity-80 group-hover:opacity-100 transition-opacity">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          disabled={pending}
+          onClick={() => {
+            setEditName(name);
+            setIsEditing(true);
+          }}
+          title="Renomear categoria"
+          aria-label="Renomear categoria"
+        >
+          <Pencil className="size-3 text-muted-foreground hover:text-foreground" />
+        </Button>
         <Button
           type="button"
           variant="ghost"
