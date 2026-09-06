@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ATTACHMENT_KIND_LABELS, ATTACHMENT_STATUS_LABELS } from "@/lib/uploads";
-import { getDownloadUrl, linkAttachment, updateAttachmentDescription } from "./actions";
+import { getDownloadUrl, linkAttachment, updateAttachmentDescription, deleteAttachment } from "./actions";
 
 type Option = { id: string; label: string };
 
@@ -43,7 +43,7 @@ export function DocumentRow({
   transactions: Option[];
 }) {
   const router = useRouter();
-  const [mode, setMode] = useState<"view" | "link" | "description">("view");
+  const [mode, setMode] = useState<"view" | "link" | "description" | "delete">("view");
   const [pending, startTransition] = useTransition();
   const [downloading, setDownloading] = useState(false);
 
@@ -52,6 +52,7 @@ export function DocumentRow({
   );
   const [linkId, setLinkId] = useState(entityId ?? "");
   const [editDescription, setEditDescription] = useState(description ?? "");
+  const [deleteReason, setDeleteReason] = useState("");
 
   async function handleDownload() {
     setDownloading(true);
@@ -90,6 +91,22 @@ export function DocumentRow({
         router.refresh();
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Erro ao salvar.");
+      }
+    });
+  }
+
+  function handleDelete() {
+    if (!deleteReason.trim() || deleteReason.trim().length < 5) {
+      toast.error("Informe um motivo com pelo menos 5 caracteres.");
+      return;
+    }
+    startTransition(async () => {
+      try {
+        await deleteAttachment(id, deleteReason);
+        toast.success("Documento excluído com sucesso.");
+        router.refresh();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "Erro ao excluir documento.");
       }
     });
   }
@@ -167,6 +184,42 @@ export function DocumentRow({
     );
   }
 
+  if (mode === "delete") {
+    return (
+      <tr className="border-border border-b border-dashed">
+        <td colSpan={7} className="py-3">
+          <div className="border-destructive/30 bg-destructive/10 grid gap-2 rounded-lg border border-dashed p-3">
+            <p className="text-destructive text-sm font-medium">
+              Confirmar exclusão de &ldquo;{fileName}&rdquo;?
+            </p>
+            <p className="text-muted-foreground text-xs">
+              O arquivo será permanentemente removido e o motivo será registrado na auditoria do sistema.
+            </p>
+            <Input
+              value={deleteReason}
+              onChange={(e) => setDeleteReason(e.target.value)}
+              placeholder="Motivo da exclusão (obrigatório, mín. 5 caracteres)"
+              disabled={pending}
+            />
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="destructive"
+                disabled={pending || deleteReason.trim().length < 5}
+                onClick={handleDelete}
+              >
+                {pending ? "Excluindo…" : "Confirmar exclusão"}
+              </Button>
+              <Button size="sm" variant="outline" disabled={pending} onClick={() => setMode("view")}>
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </td>
+      </tr>
+    );
+  }
+
   return (
     <tr className="border-border border-b border-dashed last:border-0">
       <td className="py-2.5 pr-4">
@@ -199,6 +252,9 @@ export function DocumentRow({
               </Button>
               <Button variant="outline" size="sm" onClick={() => setMode("description")}>
                 Descrição
+              </Button>
+              <Button variant="outline" size="sm" className="text-destructive hover:bg-destructive/10" onClick={() => setMode("delete")}>
+                Excluir
               </Button>
             </>
           ) : null}

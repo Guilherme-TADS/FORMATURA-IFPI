@@ -2,8 +2,9 @@
 
 import { revalidatePath, updateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { SETTINGS_KEYS, type EventInfo } from "@/lib/settings";
+import { SETTINGS_KEYS, type EventInfo, type PixInfo } from "@/lib/settings";
 import { DEFAULT_UPLOAD_LIMITS } from "@/lib/uploads";
+import type { Json } from "@/types/database";
 
 export type SettingsActionState = { error?: string };
 
@@ -28,6 +29,7 @@ export async function updateSettings(values: {
   eventInfo: EventInfo;
   maxUploadSizeMb: number;
   reservationTtlMinutes: number;
+  pixInfo?: PixInfo;
 }): Promise<SettingsActionState> {
   if (!values.eventInfo.name.trim()) {
     return { error: "Informe o nome do evento." };
@@ -46,7 +48,7 @@ export async function updateSettings(values: {
   try {
     const { supabase, userId } = await requireAdmin();
 
-    const rows = [
+    const rows: { key: string; value: Json; updated_by: string }[] = [
       {
         key: SETTINGS_KEYS.eventInfo,
         value: {
@@ -70,6 +72,18 @@ export async function updateSettings(values: {
         updated_by: userId,
       },
     ];
+
+    if (values.pixInfo) {
+      rows.push({
+        key: SETTINGS_KEYS.pixInfo,
+        value: {
+          key: values.pixInfo.key.trim(),
+          merchantName: values.pixInfo.merchantName.trim(),
+          merchantCity: values.pixInfo.merchantCity.trim(),
+        },
+        updated_by: userId,
+      });
+    }
 
     const { error } = await supabase.from("system_settings").upsert(rows, { onConflict: "key" });
     if (error) return { error: "Não foi possível salvar as configurações." };

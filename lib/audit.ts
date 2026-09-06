@@ -10,6 +10,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   RAFFLE_CANCELLED: "Rifa cancelada",
   FINANCIAL_TRANSACTION_CREATED: "Lançamento criado",
   FINANCIAL_TRANSACTION_UPDATED: "Lançamento alterado",
+  ATTACHMENT_DELETED: "Documento excluído",
 };
 
 export const AUDIT_ENTITY_TYPE_LABELS: Record<string, string> = {
@@ -17,4 +18,5 @@ export const AUDIT_ENTITY_TYPE_LABELS: Record<string, string> = {
   raffle_sale: "Venda",
   raffle: "Rifa",
   financial_transaction: "Lançamento financeiro",
+  attachment: "Documento / Anexo",
 };

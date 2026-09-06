@@ -16,7 +16,7 @@ export default async function SettingsPage() {
     redirect("/admin/dashboard");
   }
 
-  const { eventInfo, uploadLimits, reservationTtlMinutes } = await getAllSettings();
+  const { eventInfo, uploadLimits, reservationTtlMinutes, pixInfo } = await getAllSettings();
 
   return (
     <div>
@@ -31,6 +31,9 @@ export default async function SettingsPage() {
         eventClassName={eventInfo.className}
         maxUploadSizeMb={Math.round(uploadLimits.maxSizeBytes / 1024 / 1024)}
         reservationTtlMinutes={reservationTtlMinutes}
+        pixKey={pixInfo.key}
+        pixMerchantName={pixInfo.merchantName}
+        pixMerchantCity={pixInfo.merchantCity}
       />
     </div>
   );

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PurchaseFlow } from "./purchase-flow";
 import { centsToBRL } from "@/lib/money";
-import { getReservationTtlMinutes } from "@/lib/settings";
+import { getReservationTtlMinutes, getPixInfo } from "@/lib/settings";
 import { getPublicRaffleBySlug, getPublicPaymentMethods } from "@/lib/public-raffles";
 
 export async function generateMetadata({
@@ -54,10 +54,11 @@ async function RaffleContent({
 }) {
   const { slug } = await params;
 
-  const [raffle, paymentMethods, reservationTtlMinutes] = await Promise.all([
+  const [raffle, paymentMethods, reservationTtlMinutes, pixInfo] = await Promise.all([
     getPublicRaffleBySlug(slug),
     getPublicPaymentMethods(),
     getReservationTtlMinutes(),
+    getPixInfo(),
   ]);
 
   if (!raffle) notFound();
@@ -118,6 +119,7 @@ async function RaffleContent({
           unitPriceCents={raffle.unit_price_cents!}
           paymentMethods={paymentMethods}
           reservationTtlMinutes={reservationTtlMinutes}
+          pixInfo={pixInfo}
         />
       )}
 
@@ -150,6 +152,9 @@ async function Availability({
   total: number;
 }) {
   const supabase = await createClient();
+  // Libera oportunamente reservas que possam ter expirado
+  await supabase.rpc("rpc_release_expired_reservations");
+
   const { data: points } = await supabase
     .from("public_raffle_points")
     .select("status")

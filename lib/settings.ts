@@ -11,12 +11,25 @@ export const SETTINGS_KEYS = {
   eventInfo: "event_info",
   uploadLimits: "upload_limits",
   reservationTtlMinutes: "reservation_ttl_minutes",
+  pixInfo: "pix_info",
 } as const;
 
 export type EventInfo = {
   name: string;
   course: string;
   className: string;
+};
+
+export type PixInfo = {
+  key: string;
+  merchantName: string;
+  merchantCity: string;
+};
+
+export const DEFAULT_PIX_INFO: PixInfo = {
+  key: process.env.NEXT_PUBLIC_PIX_KEY || "",
+  merchantName: "Comissao Formatura",
+  merchantCity: "Teresina",
 };
 
 export const DEFAULT_EVENT_INFO: EventInfo = {
@@ -63,11 +76,17 @@ export async function getReservationTtlMinutes(): Promise<number> {
   return typeof value === "number" && value > 0 ? value : DEFAULT_RESERVATION_TTL_MINUTES;
 }
 
+export async function getPixInfo(): Promise<PixInfo> {
+  const value = await getSetting<Partial<PixInfo>>(SETTINGS_KEYS.pixInfo);
+  return { ...DEFAULT_PIX_INFO, ...value };
+}
+
 export async function getAllSettings() {
-  const [eventInfo, uploadLimits, reservationTtlMinutes] = await Promise.all([
+  const [eventInfo, uploadLimits, reservationTtlMinutes, pixInfo] = await Promise.all([
     getEventInfo(),
     getUploadLimits(),
     getReservationTtlMinutes(),
+    getPixInfo(),
   ]);
-  return { eventInfo, uploadLimits, reservationTtlMinutes };
+  return { eventInfo, uploadLimits, reservationTtlMinutes, pixInfo };
 }

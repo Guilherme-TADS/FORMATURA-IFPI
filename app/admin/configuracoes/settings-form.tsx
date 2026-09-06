@@ -13,12 +13,18 @@ export function SettingsForm({
   eventClassName,
   maxUploadSizeMb,
   reservationTtlMinutes,
+  pixKey = "",
+  pixMerchantName = "",
+  pixMerchantCity = "",
 }: {
   eventName: string;
   eventCourse: string;
   eventClassName: string;
   maxUploadSizeMb: number;
   reservationTtlMinutes: number;
+  pixKey?: string;
+  pixMerchantName?: string;
+  pixMerchantCity?: string;
 }) {
   const router = useRouter();
   const [name, setName] = useState(eventName);
@@ -26,6 +32,9 @@ export function SettingsForm({
   const [className, setClassName] = useState(eventClassName);
   const [maxUploadMb, setMaxUploadMb] = useState(String(maxUploadSizeMb));
   const [ttlMinutes, setTtlMinutes] = useState(String(reservationTtlMinutes));
+  const [key, setKey] = useState(pixKey);
+  const [merchantName, setMerchantName] = useState(pixMerchantName || "Comissao Formatura");
+  const [merchantCity, setMerchantCity] = useState(pixMerchantCity || "Teresina");
   const [pending, startTransition] = useTransition();
 
   function handleSubmit(e: React.FormEvent) {
@@ -35,6 +44,11 @@ export function SettingsForm({
         eventInfo: { name, course, className },
         maxUploadSizeMb: Number(maxUploadMb),
         reservationTtlMinutes: Number(ttlMinutes),
+        pixInfo: {
+          key,
+          merchantName,
+          merchantCity,
+        },
       });
       if (result?.error) {
         toast.error(result.error);
@@ -104,6 +118,48 @@ export function SettingsForm({
         <p className="text-muted-foreground text-xs">
           Formatos aceitos em comprovantes e documentos: JPG, PNG, WEBP e PDF (fixo).
         </p>
+      </div>
+
+      <div className="receipt-divider grid gap-3 pt-6">
+        <h2 className="label-tag">Chave PIX e Pagamento</h2>
+        <div className="grid gap-1">
+          <label className="text-sm font-medium" htmlFor="pix-key">
+            Chave PIX (E-mail, CPF/CNPJ, Telefone ou Chave Aleatória)
+          </label>
+          <Input
+            id="pix-key"
+            value={key}
+            onChange={(e) => setKey(e.target.value)}
+            placeholder="ex: comissao@email.com ou 12345678900"
+          />
+          <p className="text-muted-foreground text-xs">
+            Utilizada para gerar automaticamente o código Pix Copia e Cola no checkout das rifas.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-1">
+            <label className="text-sm font-medium" htmlFor="pix-merchant-name">
+              Nome do recebedor (máx 25 carac.)
+            </label>
+            <Input
+              id="pix-merchant-name"
+              maxLength={25}
+              value={merchantName}
+              onChange={(e) => setMerchantName(e.target.value)}
+            />
+          </div>
+          <div className="grid gap-1">
+            <label className="text-sm font-medium" htmlFor="pix-merchant-city">
+              Cidade do recebedor (máx 15 carac.)
+            </label>
+            <Input
+              id="pix-merchant-city"
+              maxLength={15}
+              value={merchantCity}
+              onChange={(e) => setMerchantCity(e.target.value)}
+            />
+          </div>
+        </div>
       </div>
 
       <div className="receipt-divider pt-6">

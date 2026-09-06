@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/form";
 import { centsToBRL } from "@/lib/money";
 import { buyerFormSchema, type SaleReceipt } from "@/lib/schemas/checkout";
+import { generatePixPayload } from "@/lib/pix";
+import type { PixInfo } from "@/lib/settings";
 import { NumberGrid } from "./number-grid";
 
 type PaymentMethod = { id: string | null; name: string | null };
@@ -38,12 +40,14 @@ export function PurchaseFlow({
   unitPriceCents,
   paymentMethods,
   reservationTtlMinutes,
+  pixInfo,
 }: {
   raffleId: string;
   raffleSlug: string;
   unitPriceCents: number;
   paymentMethods: PaymentMethod[];
   reservationTtlMinutes: number;
+  pixInfo?: PixInfo;
 }) {
   const router = useRouter();
   const storageKey = `${RESERVATION_STORAGE_KEY_PREFIX}${raffleId}`;
@@ -78,6 +82,28 @@ export function PurchaseFlow({
     (m) => m.id === watchedPaymentMethodId,
   );
   const isPix = selectedPaymentMethod?.name?.toUpperCase() === "PIX";
+  const [copied, setCopied] = useState(false);
+  const totalCents = selected.length * unitPriceCents;
+
+  const pixCode = useMemo(() => {
+    if (!isPix || !pixInfo?.key || !reservation) return "";
+    return generatePixPayload({
+      pixKey: pixInfo.key,
+      merchantName: pixInfo.merchantName,
+      merchantCity: pixInfo.merchantCity,
+      amountCents: totalCents,
+      txId: `RIFA${reservation.pointNumbers[0] ?? ""}`,
+    });
+  }, [isPix, pixInfo, reservation, totalCents]);
+
+  function handleCopyPix() {
+    const textToCopy = pixCode || pixInfo?.key;
+    if (!textToCopy) return;
+    navigator.clipboard.writeText(textToCopy);
+    setCopied(true);
+    toast.success(pixCode ? "Código Pix Copia e Cola copiado!" : "Chave Pix copiada!");
+    setTimeout(() => setCopied(false), 3000);
+  }
 
   // Resume an in-flight reservation across a page refresh instead of
   // silently orphaning it until the cron sweep releases it.
@@ -125,8 +151,6 @@ export function PurchaseFlow({
     return () => clearInterval(interval);
   }, [reservation, storageKey]);
 
-  const totalCents = selected.length * unitPriceCents;
-
   function toggleSelection(pointNumber: number) {
     setSelected((prev) =>
       prev.includes(pointNumber)
@@ -145,6 +169,9 @@ export function PurchaseFlow({
     setReserving(true);
     const supabase = createClient();
     const token = crypto.randomUUID();
+
+    // Libera oportunamente reservas que possam ter expirado
+    await supabase.rpc("rpc_release_expired_reservations");
 
     const { data, error } = await supabase.rpc("rpc_reserve_points", {
       p_raffle_id: raffleId,
@@ -393,22 +420,54 @@ export function PurchaseFlow({
           />
 
           {isPix ? (
-            <div className="border-border bg-secondary/60 grid gap-2 rounded-lg border border-dashed p-3.5">
-              <label className="text-sm font-medium">Comprovante do PIX</label>
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp,application/pdf"
-                onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
-                className="text-muted-foreground file:bg-card file:text-foreground file:border-border text-xs file:mr-3 file:rounded-md file:border file:px-2.5 file:py-1.5 file:text-xs file:font-medium"
-              />
-              {uploading ? (
-                <p className="text-pending text-xs font-medium">Enviando…</p>
-              ) : null}
-              {attachmentId ? (
-                <p className="text-confirmed flex items-center gap-1 text-xs font-medium">
-                  <span aria-hidden>✓</span> Comprovante anexado
+            <div className="border-border bg-secondary/60 grid gap-3 rounded-lg border border-dashed p-3.5">
+              <div>
+                <p className="text-sm font-medium">Pagamento via PIX</p>
+                <p className="text-muted-foreground text-xs mt-0.5">
+                  {pixCode
+                    ? "Copie o código abaixo e cole no seu banco na opção 'Pix Copia e Cola'. O valor exato já vem preenchido!"
+                    : pixInfo?.key
+                    ? `Faça a transferência para a chave Pix: ${pixInfo.key}`
+                    : "Chave Pix a ser informada pela comissão. Entre em contato se necessário."}
                 </p>
+              </div>
+
+              {pixCode || pixInfo?.key ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    readOnly
+                    value={pixCode || pixInfo?.key}
+                    className="font-mono text-xs bg-background select-all"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCopyPix}
+                    className="shrink-0"
+                  >
+                    {copied ? "Copiado! ✓" : "Copiar Código"}
+                  </Button>
+                </div>
               ) : null}
+
+              <div className="receipt-divider pt-2 grid gap-1.5">
+                <label className="text-sm font-medium">Anexar comprovante do PIX</label>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                  onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
+                  className="text-muted-foreground file:bg-card file:text-foreground file:border-border text-xs file:mr-3 file:rounded-md file:border file:px-2.5 file:py-1.5 file:text-xs file:font-medium"
+                />
+                {uploading ? (
+                  <p className="text-pending text-xs font-medium">Enviando comprovante…</p>
+                ) : null}
+                {attachmentId ? (
+                  <p className="text-confirmed flex items-center gap-1 text-xs font-medium">
+                    <span aria-hidden>✓</span> Comprovante anexado
+                  </p>
+                ) : null}
+              </div>
             </div>
           ) : selectedPaymentMethod ? (
             <label className="border-border bg-secondary/60 flex items-start gap-2.5 rounded-lg border border-dashed p-3.5 text-sm">

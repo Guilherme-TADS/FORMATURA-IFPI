@@ -71,3 +71,55 @@ export async function updateAttachmentDescription(attachmentId: string, descript
   if (error) throw new Error("Não foi possível atualizar a descrição.");
   revalidatePath("/admin/documentos");
 }
+
+export async function deleteAttachment(attachmentId: string, reason: string) {
+  const trimmedReason = reason.trim();
+  if (!trimmedReason || trimmedReason.length < 5) {
+    throw new Error("Informe um motivo válido para a exclusão (mínimo de 5 caracteres).");
+  }
+
+  const { supabase, userId } = await requireAdmin();
+
+  const { data: attachment, error: fetchError } = await supabase
+    .from("attachments")
+    .select("*")
+    .eq("id", attachmentId)
+    .single();
+
+  if (fetchError || !attachment) {
+    throw new Error("Documento não encontrado.");
+  }
+
+  // Se houver arquivo no Storage local, remove-o
+  if (attachment.temp_storage_path) {
+    await supabase.storage.from("attachments").remove([attachment.temp_storage_path]);
+  }
+
+  // Registra a auditoria
+  await supabase.from("audit_logs").insert({
+    action: "ATTACHMENT_DELETED",
+    entity_type: "attachment",
+    entity_id: attachmentId,
+    user_id: userId,
+    old_data: attachment,
+    metadata: {
+      reason: trimmedReason,
+      deleted_file_name: attachment.file_name,
+      storage_path: attachment.temp_storage_path,
+    },
+  });
+
+  // Remove a linha da tabela
+  const { error: deleteError } = await supabase
+    .from("attachments")
+    .delete()
+    .eq("id", attachmentId);
+
+  if (deleteError) {
+    throw new Error("Não foi possível excluir o registro do documento.");
+  }
+
+  revalidatePath("/admin/documentos");
+  revalidatePath("/admin/auditoria");
+  revalidatePath("/admin/dashboard");
+}
