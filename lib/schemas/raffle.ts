@@ -9,7 +9,13 @@ export const raffleFormSchema = z
       .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "Use apenas letras minúsculas, números e hífens."),
     description: z.string().trim().optional(),
     rules: z.string().trim().optional(),
-    imageUrl: z.union([z.string().trim().url("URL de imagem inválida."), z.literal("")]).optional(),
+    imageUrl: z
+      .union([
+        z.string().trim().url("URL de imagem inválida."),
+        z.string().trim().startsWith("/", "URL de imagem inválida."),
+        z.literal(""),
+      ])
+      .optional(),
     totalPoints: z.coerce
       .number()
       .int("Deve ser um número inteiro.")

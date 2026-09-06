@@ -16,6 +16,7 @@ import {
 import { slugify } from "@/lib/slug";
 import { raffleFormSchema, type RaffleFormValues } from "@/lib/schemas/raffle";
 import { createRaffle, updateRaffle } from "./actions";
+import { RaffleImageField } from "./raffle-image-field";
 
 function toLocalInputValue(iso?: string) {
   if (!iso) return "";
@@ -154,9 +155,13 @@ export function RaffleForm({
           name="imageUrl"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>URL da imagem</FormLabel>
+              <FormLabel>Imagem da rifa</FormLabel>
               <FormControl>
-                <Input {...field} placeholder="https://..." />
+                <RaffleImageField
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                  disabled={form.formState.isSubmitting}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>

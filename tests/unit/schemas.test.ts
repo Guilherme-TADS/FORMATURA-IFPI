@@ -60,6 +60,12 @@ describe("Zod Validation Schemas (lib/schemas/)", () => {
       };
       expect(raffleFormSchema.safeParse(withEmptyUrls).success).toBe(true);
     });
+
+    it("accepts valid absolute and relative image URLs", () => {
+      expect(raffleFormSchema.safeParse({ ...validRaffle, imageUrl: "https://bucket.supabase.co/foto.png" }).success).toBe(true);
+      expect(raffleFormSchema.safeParse({ ...validRaffle, imageUrl: "/storage/v1/object/public/raffle-images/foto.webp" }).success).toBe(true);
+      expect(raffleFormSchema.safeParse({ ...validRaffle, imageUrl: "not-a-url-or-path" }).success).toBe(false);
+    });
   });
 
   describe("buyerFormSchema", () => {
