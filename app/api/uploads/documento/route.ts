@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { ATTACHMENT_KINDS, DOCUMENT_ENTITY_TYPES, sniffMimeType } from "@/lib/uploads";
 import { getUploadLimits } from "@/lib/settings";
+import { isDriveConfigured, getDriveService } from "@/lib/services/drive";
 
 export async function POST(request: Request) {
   const limits = await getUploadLimits();
@@ -120,6 +121,31 @@ export async function POST(request: Request) {
       { error: "Não foi possível registrar o documento." },
       { status: 500 },
     );
+  }
+
+  if (isDriveConfigured()) {
+    try {
+      const drive = getDriveService();
+      const folderId =
+        process.env.GOOGLE_DRIVE_DOCUMENTS_FOLDER_ID ||
+        process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID ||
+        "";
+      const driveFile = await drive.uploadFile({
+        folderId,
+        fileName: file.name || `documento.${extension}`,
+        mimeType: sniffedMime,
+        data: buffer,
+      });
+      await admin
+        .from("attachments")
+        .update({
+          drive_file_id: driveFile.id,
+          drive_url: driveFile.webViewLink,
+        })
+        .eq("id", attachment.id);
+    } catch (err) {
+      console.warn("Aviso: Sincronização com o Google Drive falhou:", err);
+    }
   }
 
   return NextResponse.json({ attachmentId: attachment.id });

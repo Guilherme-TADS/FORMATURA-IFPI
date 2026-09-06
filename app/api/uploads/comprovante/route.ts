@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { sniffMimeType } from "@/lib/uploads";
 import { getUploadLimits } from "@/lib/settings";
+import { isDriveConfigured, getDriveService } from "@/lib/services/drive";
 
 export async function POST(request: Request) {
   const limits = await getUploadLimits();
@@ -94,6 +95,31 @@ export async function POST(request: Request) {
       { error: "Não foi possível registrar o comprovante." },
       { status: 500 },
     );
+  }
+
+  if (isDriveConfigured()) {
+    try {
+      const drive = getDriveService();
+      const folderId =
+        process.env.GOOGLE_DRIVE_RAFFLES_FOLDER_ID ||
+        process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID ||
+        "";
+      const driveFile = await drive.uploadFile({
+        folderId,
+        fileName: file.name || `comprovante.${extension}`,
+        mimeType: sniffedMime,
+        data: buffer,
+      });
+      await admin
+        .from("attachments")
+        .update({
+          drive_file_id: driveFile.id,
+          drive_url: driveFile.webViewLink,
+        })
+        .eq("id", attachment.id);
+    } catch (err) {
+      console.warn("Aviso: Sincronização do comprovante com o Google Drive falhou:", err);
+    }
   }
 
   return NextResponse.json({ attachmentId: attachment.id });
