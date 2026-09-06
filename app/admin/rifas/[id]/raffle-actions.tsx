@@ -4,19 +4,42 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { closeRaffle, cancelRaffle } from "../actions";
+import { closeRaffle, cancelRaffle, deleteRaffle } from "../actions";
 
 export function RaffleActions({
   raffleId,
   status,
+  canDelete = false,
+  raffleTitle,
 }: {
   raffleId: string;
   status: string;
+  canDelete?: boolean;
+  raffleTitle?: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [cancelling, setCancelling] = useState(false);
   const [reason, setReason] = useState("");
+
+  function handleDelete() {
+    const confirmation = window.confirm(
+      `Tem certeza que deseja excluir permanentemente a rifa "${raffleTitle || ""}"?\n\nEsta ação apagará a rifa e todos os números gerados. Esta ação NÃO pode ser desfeita.`,
+    );
+    if (!confirmation) return;
+
+    startTransition(async () => {
+      try {
+        await deleteRaffle(raffleId);
+        toast.success("Rifa excluída com sucesso.");
+        router.push("/admin/rifas");
+      } catch (err) {
+        toast.error(
+          err instanceof Error ? err.message : "Erro ao excluir a rifa.",
+        );
+      }
+    });
+  }
 
   function handleClose() {
     if (!window.confirm("Encerrar esta rifa? Novas vendas serão bloqueadas.")) {
@@ -50,11 +73,11 @@ export function RaffleActions({
     });
   }
 
-  if (status === "CANCELLED") return null;
+  if (status === "CANCELLED" && !canDelete) return null;
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {status === "OPEN" ? (
           <Button
             variant="outline"
@@ -65,14 +88,27 @@ export function RaffleActions({
             Encerrar rifa
           </Button>
         ) : null}
-        <Button
-          variant="destructive"
-          size="sm"
-          disabled={pending}
-          onClick={() => setCancelling((v) => !v)}
-        >
-          Cancelar rifa
-        </Button>
+        {status !== "CANCELLED" ? (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={pending}
+            onClick={() => setCancelling((v) => !v)}
+          >
+            Cancelar rifa
+          </Button>
+        ) : null}
+        {canDelete ? (
+          <Button
+            variant="destructive"
+            size="sm"
+            disabled={pending}
+            onClick={handleDelete}
+            title="Excluir rifa permanentemente (disponível pois não há vendas)"
+          >
+            Excluir rifa
+          </Button>
+        ) : null}
       </div>
       {cancelling ? (
         <div className="flex flex-col gap-2 rounded-lg border p-3">

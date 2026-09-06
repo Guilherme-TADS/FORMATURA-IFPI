@@ -157,3 +157,46 @@ export async function createCategory(kind: "INCOME" | "EXPENSE", name: string) {
   }
   revalidatePath("/admin/financeiro/categorias");
 }
+
+export async function deleteCategory(id: string) {
+  const { supabase } = await requireAdmin();
+
+  // Verifica se há lançamentos vinculados a esta categoria
+  const { count, error: countError } = await supabase
+    .from("financial_transactions")
+    .select("id", { count: "exact", head: true })
+    .eq("category_id", id);
+
+  if (countError) throw new Error("Erro ao verificar lançamentos da categoria.");
+  if (count && count > 0) {
+    throw new Error(
+      `Esta categoria possui ${count} lançamento(s) vinculado(s) e não pode ser excluída. Desative-a para ocultá-la de novos lançamentos.`
+    );
+  }
+
+  const { error } = await supabase
+    .from("financial_categories")
+    .delete()
+    .eq("id", id);
+
+  if (error) throw new Error("Não foi possível excluir a categoria.");
+
+  revalidatePath("/admin/financeiro/categorias");
+  revalidatePath("/admin/financeiro/receitas");
+  revalidatePath("/admin/financeiro/despesas");
+}
+
+export async function toggleCategoryActive(id: string, active: boolean) {
+  const { supabase } = await requireAdmin();
+  const { error } = await supabase
+    .from("financial_categories")
+    .update({ active })
+    .eq("id", id);
+
+  if (error) throw new Error("Não foi possível atualizar o status da categoria.");
+
+  revalidatePath("/admin/financeiro/categorias");
+  revalidatePath("/admin/financeiro/receitas");
+  revalidatePath("/admin/financeiro/despesas");
+}
+

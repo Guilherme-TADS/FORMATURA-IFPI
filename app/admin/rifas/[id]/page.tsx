@@ -27,7 +27,7 @@ export default async function RaffleDetailPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: raffle }, profile, { data: points }, { data: sales }] = await Promise.all([
+  const [{ data: raffle }, profile, { data: points }, { data: sales }, { count: totalSalesCount }] = await Promise.all([
     supabase.from("raffles").select("*").eq("id", id).single(),
     getCurrentProfile(),
     supabase.from("raffle_points").select("status").eq("raffle_id", id),
@@ -36,6 +36,10 @@ export default async function RaffleDetailPage({
       .select("amount_cents")
       .eq("raffle_id", id)
       .eq("status", "CONFIRMED"),
+    supabase
+      .from("raffle_sales")
+      .select("id", { count: "exact", head: true })
+      .eq("raffle_id", id),
   ]);
 
   if (!raffle) notFound();
@@ -142,7 +146,14 @@ export default async function RaffleDetailPage({
         ) : null}
       </dl>
 
-      {isAdmin ? <RaffleActions raffleId={id} status={raffle.status} /> : null}
+      {isAdmin ? (
+        <RaffleActions
+          raffleId={id}
+          status={raffle.status}
+          canDelete={(totalSalesCount ?? 0) === 0}
+          raffleTitle={raffle.title}
+        />
+      ) : null}
     </div>
   );
 }

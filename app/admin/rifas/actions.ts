@@ -146,3 +146,55 @@ export async function cancelRaffle(raffleId: string, reason: string) {
   revalidatePath(`/admin/rifas/${raffleId}`);
   revalidatePath("/admin/rifas");
 }
+
+export async function deleteRaffle(raffleId: string) {
+  const { supabase, userId } = await requireAdmin();
+
+  // Verifica se há vendas registradas (mesmo canceladas)
+  const { count, error: countError } = await supabase
+    .from("raffle_sales")
+    .select("id", { count: "exact", head: true })
+    .eq("raffle_id", raffleId);
+
+  if (countError) throw new Error("Erro ao verificar histórico de vendas da rifa.");
+  if (count && count > 0) {
+    throw new Error(
+      "Esta rifa possui vendas registradas e não pode ser excluída para preservar o histórico. Se desejar, encerre ou cancele a rifa.",
+    );
+  }
+
+  // Busca dados da rifa para registrar no log de auditoria
+  const { data: raffle } = await supabase
+    .from("raffles")
+    .select("id, title, slug, total_points")
+    .eq("id", raffleId)
+    .single();
+
+  // Deleta os números gerados para a rifa
+  const { error: pointsError } = await supabase
+    .from("raffle_points")
+    .delete()
+    .eq("raffle_id", raffleId);
+
+  if (pointsError) throw new Error("Não foi possível remover os números da rifa.");
+
+  // Deleta a rifa
+  const { error: deleteError } = await supabase
+    .from("raffles")
+    .delete()
+    .eq("id", raffleId);
+
+  if (deleteError) throw new Error("Não foi possível excluir a rifa.");
+
+  await supabase.from("audit_logs").insert({
+    action: "RAFFLE_DELETED",
+    entity_type: "raffle",
+    entity_id: raffleId,
+    user_id: userId,
+    old_data: raffle ?? { id: raffleId },
+  });
+
+  updateTag("raffles");
+  revalidatePath("/admin/rifas");
+}
+

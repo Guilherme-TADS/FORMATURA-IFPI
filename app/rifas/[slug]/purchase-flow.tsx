@@ -22,6 +22,7 @@ import { buyerFormSchema, type SaleReceipt } from "@/lib/schemas/checkout";
 import { generatePixPayload } from "@/lib/pix";
 import type { PixInfo } from "@/lib/settings";
 import { NumberGrid } from "./number-grid";
+import { releaseReservation } from "./actions";
 
 type PaymentMethod = { id: string | null; name: string | null };
 
@@ -61,6 +62,7 @@ export function PurchaseFlow({
   const [cashConfirmed, setCashConfirmed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [reserving, setReserving] = useState(false);
+  const [cancellingReservation, setCancellingReservation] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(buyerFormSchema),
@@ -199,6 +201,31 @@ export function PurchaseFlow({
     setReservation(stored);
   }
 
+  async function handleCancelReservation() {
+    if (!reservation) return;
+    if (
+      !window.confirm(
+        "Deseja cancelar sua reserva e liberar estes números para outros compradores?",
+      )
+    ) {
+      return;
+    }
+    setCancellingReservation(true);
+    try {
+      await releaseReservation(raffleId, raffleSlug, reservation.token);
+      sessionStorage.removeItem(storageKey);
+      setReservation(null);
+      setSelected([]);
+      setAttachmentId(null);
+      setGridRefreshKey((k) => k + 1);
+      toast.success("Reserva cancelada e números liberados.");
+    } catch {
+      toast.error("Não foi possível liberar os números. Tente novamente.");
+    } finally {
+      setCancellingReservation(false);
+    }
+  }
+
   async function handleFileChange(file: File | null) {
     if (!file) {
       setAttachmentId(null);
@@ -321,23 +348,41 @@ export function PurchaseFlow({
     <div className="mt-8 max-w-md">
       <div
         className={cn(
-          "mb-5 flex items-center justify-between gap-3 rounded-lg border p-3.5",
+          "mb-5 rounded-lg border p-3.5",
           urgent
             ? "border-void/40 bg-void-bg text-void"
             : "border-pending/40 bg-pending-bg text-pending",
         )}
       >
-        <div>
-          <p className="label-tag text-current opacity-80">
-            Reservado · {reservation.pointNumbers.join(", ")}
-          </p>
-          <p className="font-figures text-sm font-semibold">
-            {minutes}:{String(seconds).padStart(2, "0")} restantes
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="label-tag text-current opacity-80">
+              Reservado · {reservation.pointNumbers.join(", ")}
+            </p>
+            <p className="font-figures text-sm font-semibold">
+              {minutes}:{String(seconds).padStart(2, "0")} restantes
+            </p>
+          </div>
+          <p className="font-figures text-lg font-semibold text-current">
+            {centsToBRL(totalCents)}
           </p>
         </div>
-        <p className="font-figures text-lg font-semibold text-current">
-          {centsToBRL(totalCents)}
-        </p>
+
+        <div className="mt-3 flex items-center justify-between border-t border-current/15 pt-2.5">
+          <span className="text-xs opacity-75">
+            Deseja trocar ou desistir dos números?
+          </span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            disabled={cancellingReservation || submitting}
+            onClick={handleCancelReservation}
+            className="hover:bg-current/10 hover:text-current font-medium text-xs underline"
+          >
+            {cancellingReservation ? "Liberando…" : "Cancelar reserva"}
+          </Button>
+        </div>
       </div>
 
       <Form {...form}>
