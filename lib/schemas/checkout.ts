@@ -22,5 +22,6 @@ export type SaleReceipt = {
   pointNumbers: number[];
   amountCents: number;
   paymentMethod: string;
+  status?: "CONFIRMED" | "PENDING" | "CANCELLED";
   createdAt: string;
 };

@@ -301,7 +301,11 @@ export function PurchaseFlow({
     }
 
     const receipt = data as SaleReceipt;
-    sessionStorage.setItem(`receipt:${receipt.saleId}`, JSON.stringify(receipt));
+    const receiptWithStatus: SaleReceipt = {
+      ...receipt,
+      status: "PENDING",
+    };
+    sessionStorage.setItem(`receipt:${receipt.saleId}`, JSON.stringify(receiptWithStatus));
     sessionStorage.removeItem(storageKey);
     router.push(`/rifas/${raffleSlug}/confirmacao/${receipt.saleId}`);
   }

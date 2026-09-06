@@ -83,22 +83,33 @@ export function ConfirmationClient({
       <div className="animate-receipt-feed w-full max-w-sm">
         <div className="bg-card ring-foreground/8 relative rounded-lg p-6 shadow-[0_1px_2px_oklch(0.3_0.02_85_/_0.08),0_16px_32px_-16px_oklch(0.3_0.02_85_/_0.28)] ring-1 print:shadow-none print:ring-0">
           <div className="flex flex-col items-center text-center">
-            <span
-              className="stamp text-confirmed animate-stamp-in border-confirmed text-sm"
-              style={{ animationDelay: "0.35s" }}
-            >
-              ✓ Confirmado
-            </span>
+            {receipt.status === "PENDING" ? (
+              <span
+                className="stamp text-amber-600 dark:text-amber-400 animate-stamp-in border-amber-600 dark:border-amber-400 text-sm"
+                style={{ animationDelay: "0.35s" }}
+              >
+                ⏳ Aguardando Conferência
+              </span>
+            ) : (
+              <span
+                className="stamp text-confirmed animate-stamp-in border-confirmed text-sm"
+                style={{ animationDelay: "0.35s" }}
+              >
+                ✓ Confirmado
+              </span>
+            )}
             <h1 className="mt-3 text-lg font-semibold text-balance">
               {receipt.raffleTitle}
             </h1>
             <p className="text-muted-foreground mt-1 text-xs">
-              Guarde esta confirmação — ela é o seu comprovante.
+              {receipt.status === "PENDING"
+                ? "Recebemos seu pedido! Seus números estão reservados com exclusividade enquanto a comissão confere o pagamento."
+                : "Guarde esta confirmação — ela é o seu comprovante."}
             </p>
           </div>
 
           <div className="mt-5 flex flex-col items-center border-y border-dashed border-border py-4">
-            <span className="label-tag">Valor pago</span>
+            <span className="label-tag">{receipt.status === "PENDING" ? "Valor a conferir" : "Valor pago"}</span>
             <span className="font-figures mt-1 text-3xl font-semibold">
               {centsToBRL(receipt.amountCents)}
             </span>
@@ -112,6 +123,10 @@ export function ConfirmationClient({
               mono
             />
             <ReceiptRow label="Pagamento" value={receipt.paymentMethod} />
+            <ReceiptRow
+              label="Status"
+              value={receipt.status === "PENDING" ? "Pendente de conferência" : "Confirmado"}
+            />
             <ReceiptRow
               label="Data"
               value={new Date(receipt.createdAt).toLocaleString("pt-BR")}
