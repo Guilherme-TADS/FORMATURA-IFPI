@@ -26,6 +26,12 @@ export default async function Home() {
           <LinkButton href="/rifas" size="lg" className="mt-5 w-full">
             Ver rifas ativas
           </LinkButton>
+          <Link
+            href="/rifas/meus-bilhetes"
+            className="text-muted-foreground hover:text-foreground mt-3 inline-block text-xs underline underline-offset-4"
+          >
+            🔍 Já comprou? Consulte seus bilhetes
+          </Link>
         </div>
 
         {/* Torn ticket edge — the receipt world's recurring seam. */}

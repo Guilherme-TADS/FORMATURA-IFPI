@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,8 +23,18 @@ export function ForgotPasswordForm() {
     return (
       <Card>
         <CardContent className="pt-6 text-sm">
-          Se este e-mail estiver cadastrado, você receberá um link para
-          redefinir sua senha em instantes.
+          <p>
+            Se este e-mail estiver cadastrado, você receberá um link para
+            redefinir sua senha em instantes.
+          </p>
+          <div className="mt-4">
+            <Link
+              href="/login"
+              className="text-primary hover:underline text-xs font-medium inline-flex items-center gap-1"
+            >
+              ‹ Voltar para o login
+            </Link>
+          </div>
         </CardContent>
       </Card>
     );
@@ -45,6 +56,14 @@ export function ForgotPasswordForm() {
           <Button type="submit" disabled={pending} className="w-full">
             {pending ? "Enviando..." : "Enviar link"}
           </Button>
+          <div className="text-center mt-1">
+            <Link
+              href="/login"
+              className="text-muted-foreground hover:text-foreground text-xs underline underline-offset-4"
+            >
+              Voltar para o login
+            </Link>
+          </div>
         </form>
       </CardContent>
     </Card>

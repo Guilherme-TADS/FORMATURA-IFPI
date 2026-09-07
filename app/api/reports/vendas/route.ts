@@ -6,7 +6,11 @@ import { querySalesReport, parseSalesReportFilters } from "@/lib/reports/sales";
 import { SalesReportPdf } from "@/lib/reports/sales-pdf";
 import { centsToBRL } from "@/lib/money";
 
-const STATUS_LABELS: Record<string, string> = { CONFIRMED: "Confirmada", CANCELLED: "Cancelada" };
+const STATUS_LABELS: Record<string, string> = {
+  CONFIRMED: "Confirmada",
+  PENDING: "Pendente",
+  CANCELLED: "Cancelada",
+};
 
 // Exports ignore pagination and return every matching row up to this cap —
 // generous for a single graduation committee's raffle volume, but bounded so

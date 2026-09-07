@@ -254,7 +254,7 @@ export function RaffleForm({
                 <Input {...field} placeholder="https://docs.google.com/spreadsheets/d/..." />
               </FormControl>
               <p className="text-muted-foreground text-xs">
-                Cole o link de uma planilha pública do Google Sheets se desejar disponibilizar para os compradores conferirem a lista de bilhetes.
+                Opcional. O sistema já controla os bilhetes e comprovantes em tempo real. Preencha apenas se a turma já possui uma planilha externa e desejar disponibilizar o link para conferência.
               </p>
               <FormMessage />
             </FormItem>

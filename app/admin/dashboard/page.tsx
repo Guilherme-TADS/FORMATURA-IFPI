@@ -34,6 +34,7 @@ export default async function DashboardPage() {
     { data: transactions },
     { data: expenses },
     { data: activity },
+    { data: unapprovedSales },
   ] = await Promise.all([
     supabase.from("raffles").select("id", { count: "exact", head: true }).eq("status", "OPEN"),
     supabase
@@ -65,7 +66,26 @@ export default async function DashboardPage() {
           .order("created_at", { ascending: false })
           .limit(10)
       : Promise.resolve({ data: null }),
+    supabase
+      .from("raffle_sales")
+      .select("id")
+      .eq("status", "CONFIRMED")
+      .is("seller_id", null),
   ]);
+
+  const selfServiceSaleIds = (unapprovedSales ?? []).map((s) => s.id);
+  const { data: approvedLogs } =
+    selfServiceSaleIds.length > 0
+      ? await supabase
+          .from("audit_logs")
+          .select("entity_id")
+          .eq("entity_type", "raffle_sale")
+          .eq("action", "SALE_APPROVED")
+          .in("entity_id", selfServiceSaleIds)
+      : { data: [] };
+
+  const approvedIds = new Set((approvedLogs ?? []).map((l) => l.entity_id));
+  const pendingReviewCount = selfServiceSaleIds.filter((id) => !approvedIds.has(id)).length;
 
   let balanceCents = 0;
   let monthResultCents = 0;
@@ -85,6 +105,25 @@ export default async function DashboardPage() {
       <p className="text-muted-foreground mt-1 mb-6 text-sm">
         Resumo do que está acontecendo na comissão.
       </p>
+
+      {pendingReviewCount > 0 && (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 text-sm text-amber-800 dark:text-amber-300">
+          <div className="flex items-center gap-2">
+            <span className="text-base">⏳</span>
+            <span>
+              Existem <strong>{pendingReviewCount} {pendingReviewCount === 1 ? "venda de rifa pendente" : "vendas de rifa pendentes"}</strong> aguardando conferência do comprovante.
+            </span>
+          </div>
+          <LinkButton
+            variant="outline"
+            size="sm"
+            href="/admin/relatorios/vendas?status=PENDING"
+            className="border-amber-500/40 bg-background text-amber-900 dark:text-amber-200"
+          >
+            Conferir pendências
+          </LinkButton>
+        </div>
+      )}
 
       <div className="border-border bg-card ring-foreground/8 grid grid-cols-2 divide-x divide-y divide-dashed divide-border overflow-hidden rounded-lg border ring-1 sm:grid-cols-4 sm:divide-y-0">
         {canSeeFinancials ? (
@@ -120,10 +159,9 @@ export default async function DashboardPage() {
         </div>
       </div>
       <p className="text-muted-foreground mt-3 mb-8 text-xs">
-        Total de vendas de rifas confirmadas: {centsToBRL(raffleRevenue.totalCents)}. Esse valor é
-        separado do Saldo — uma venda confirmada não significa dinheiro já lançado no Financeiro
-        (especialmente vendas em dinheiro, só entram no Saldo quando alguém registra o repasse em
-        Financeiro › Receitas).
+        Total histórico de rifas confirmadas: <strong>{centsToBRL(raffleRevenue.totalCents)}</strong>.
+        Para conciliação contábil, os valores arrecadados entram no Saldo da turma quando o repasse
+        é registrado em <span className="font-medium text-foreground">Financeiro › Receitas</span> (categoria &quot;Rifa&quot;).
       </p>
 
       <div className="mb-8 flex flex-wrap gap-2">

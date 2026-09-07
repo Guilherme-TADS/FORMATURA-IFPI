@@ -99,16 +99,24 @@ export default async function FinancialOverviewPage() {
       </p>
 
       <div className="border-border bg-secondary/50 mt-8 rounded-lg border border-dashed p-4">
-        <p className="label-tag">Vendas de rifas (mês) — não incluído no Saldo acima</p>
-        <p className="font-figures mt-1 text-xl font-semibold">
-          {centsToBRL(raffleRevenue.monthCents)}
-        </p>
-        <p className="text-muted-foreground mt-1.5 text-xs">
-          Total de vendas de rifas confirmadas: {centsToBRL(raffleRevenue.totalCents)}. Uma venda
-          confirmada não é automaticamente um lançamento financeiro — registre o repasse em{" "}
-          <span className="font-medium">Receitas</span> (categoria &quot;Rifa&quot;) quando o
-          dinheiro entrar de fato, para então contar no Saldo.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="label-tag">Arrecadação de rifas (mês)</p>
+            <p className="font-figures mt-1 text-xl font-semibold">
+              {centsToBRL(raffleRevenue.monthCents)}
+            </p>
+            <p className="text-muted-foreground mt-1.5 text-xs max-w-xl">
+              Total histórico de rifas confirmadas: <strong>{centsToBRL(raffleRevenue.totalCents)}</strong>.
+              Para conciliação contábil, os valores entram no Saldo geral quando a comissão confirma a entrada em{" "}
+              <span className="font-medium text-foreground">Receitas</span> (categoria &quot;Rifa&quot;).
+            </p>
+          </div>
+          {profile.role === "ADMIN" ? (
+            <LinkButton variant="outline" size="sm" href="/admin/financeiro/receitas">
+              Registrar Repasse em Receitas
+            </LinkButton>
+          ) : null}
+        </div>
       </div>
     </div>
   );

@@ -79,6 +79,15 @@ export function UserRow({
   }
 
   function handleToggleActive() {
+    if (
+      active &&
+      !window.confirm(
+        `Tem certeza que deseja desativar o acesso de "${fullName}"?\n\nO usuário não conseguirá fazer login no sistema até ser reativado.`,
+      )
+    ) {
+      return;
+    }
+
     startTransition(async () => {
       const result = await toggleUserActive(id, !active);
       if (result?.error) {

@@ -6,7 +6,7 @@ export type SalesReportFilters = {
   sellerId?: string;
   pointNumber?: number;
   paymentMethodId?: string;
-  status?: "CONFIRMED" | "CANCELLED";
+  status?: "CONFIRMED" | "PENDING" | "CANCELLED";
   raffleId?: string;
   startDate?: string;
   endDate?: string;
@@ -61,7 +61,13 @@ export async function querySalesReport(
       { count: "exact" },
     );
 
-  if (filters.status) query = query.eq("status", filters.status);
+  if (filters.status) {
+    if (filters.status === "PENDING") {
+      query = query.is("seller_id", null).eq("status", "CONFIRMED");
+    } else {
+      query = query.eq("status", filters.status);
+    }
+  }
   if (filters.raffleId) query = query.eq("raffle_id", filters.raffleId);
   if (filters.sellerId) query = query.eq("seller_id", filters.sellerId);
   if (filters.paymentMethodId) query = query.eq("payment_method_id", filters.paymentMethodId);
@@ -93,7 +99,12 @@ export async function querySalesReport(
   const rows: SalesReportRow[] = (data ?? []).map((s) => ({
     id: s.id,
     amountCents: s.amount_cents,
-    status: s.status,
+    status:
+      s.status === "CANCELLED"
+        ? "CANCELLED"
+        : s.profiles
+          ? "CONFIRMED"
+          : "PENDING",
     createdAt: s.created_at,
     cancelledReason: s.cancelled_reason,
     raffleTitle: s.raffles?.title ?? "—",
@@ -127,9 +138,12 @@ export function parseSalesReportFilters(searchParams: {
     sellerId: searchParams.seller || undefined,
     pointNumber: searchParams.numero ? Number(searchParams.numero) : undefined,
     paymentMethodId: searchParams.pagamento || undefined,
-    status: searchParams.status === "CONFIRMED" || searchParams.status === "CANCELLED"
-      ? searchParams.status
-      : undefined,
+    status:
+      searchParams.status === "CONFIRMED" ||
+      searchParams.status === "PENDING" ||
+      searchParams.status === "CANCELLED"
+        ? searchParams.status
+        : undefined,
     raffleId: searchParams.rifa || undefined,
     startDate: searchParams.de || undefined,
     endDate: searchParams.ate || undefined,

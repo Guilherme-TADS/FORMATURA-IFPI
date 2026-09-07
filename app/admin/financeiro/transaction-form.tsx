@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -49,6 +49,10 @@ export function TransactionForm({
     },
   });
 
+  const [file, setFile] = useState<File | null>(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   async function onSubmit(values: TransactionFormValues) {
     setServerError(null);
     const result = await createTransaction(type, values);
@@ -56,7 +60,41 @@ export function TransactionForm({
       setServerError(result.error);
       return;
     }
-    toast.success(type === "INCOME" ? "Receita registrada." : "Despesa registrada.");
+
+    if (file && result.id) {
+      setUploadingFile(true);
+      const formData = new FormData();
+      formData.set("file", file);
+      formData.set("kind", type === "EXPENSE" ? "nota_fiscal" : "recibo");
+      formData.set("entityType", "financial_transaction");
+      formData.set("entityId", result.id);
+      formData.set("description", values.description);
+
+      try {
+        const uploadRes = await fetch("/api/uploads/documento", {
+          method: "POST",
+          body: formData,
+        });
+        if (!uploadRes.ok) {
+          toast.warning("Lançamento salvo, mas houve falha ao anexar o comprovante.");
+        } else {
+          toast.success(
+            type === "INCOME"
+              ? "Receita registrada e comprovante anexado!"
+              : "Despesa registrada e comprovante anexado!",
+          );
+        }
+      } catch {
+        toast.warning("Lançamento salvo, mas ocorreu erro no envio do arquivo.");
+      } finally {
+        setUploadingFile(false);
+      }
+    } else {
+      toast.success(type === "INCOME" ? "Receita registrada." : "Despesa registrada.");
+    }
+
+    setFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
     form.reset({
       description: "",
       categoryId: "",
@@ -133,7 +171,7 @@ export function TransactionForm({
             name="supplierName"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Fornecedor / Beneficiário (opcional)</FormLabel>
+                <FormLabel>Fornecedor / Beneficiário (quem recebeu o valor)</FormLabel>
                 <FormControl>
                   <Input {...field} placeholder="ex: Buffet, DJ, Gráfica, Decoração" />
                 </FormControl>
@@ -190,16 +228,16 @@ export function TransactionForm({
             <FormItem>
               <FormLabel>
                 {type === "INCOME"
-                  ? "Fonte pagadora / Origem (opcional)"
-                  : "Origem dos recursos / Conta (opcional)"}
+                  ? "Fonte pagadora (quem fez o pagamento)"
+                  : "Conta / Origem do recurso (de onde saiu o dinheiro)"}
               </FormLabel>
               <FormControl>
                 <Input
                   {...field}
                   placeholder={
                     type === "INCOME"
-                      ? "ex: Barraca de doces, Patrocínio X, Doação"
-                      : "ex: Caixa físico da turma, Conta Pix"
+                      ? "ex: Barraca de doces, Patrocínio, Doação da turma"
+                      : "ex: Caixa físico da turma, Conta corrente / Pix"
                   }
                 />
               </FormControl>
@@ -226,6 +264,25 @@ export function TransactionForm({
           )}
         />
 
+        <div className="grid gap-1">
+          <label className="text-sm font-medium" htmlFor="transaction-file">
+            {type === "EXPENSE"
+              ? "Comprovante / Nota Fiscal (opcional)"
+              : "Comprovante / Recibo (opcional)"}
+          </label>
+          <input
+            id="transaction-file"
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,application/pdf"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            className="border-input h-9 w-full rounded-lg border bg-transparent px-2.5 text-xs outline-none file:mr-2 file:h-full file:border-0 file:bg-transparent file:text-xs file:font-medium"
+          />
+          <p className="text-muted-foreground text-xs">
+            Formatos aceitos: JPG, PNG, WEBP ou PDF (até 8MB). Ficará salvo em Documentos vinculado a este lançamento.
+          </p>
+        </div>
+
         {serverError ? (
           <p role="alert" className="text-destructive text-sm">
             {serverError}
@@ -233,8 +290,13 @@ export function TransactionForm({
         ) : null}
 
         <div>
-          <Button type="submit" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? "Salvando..." : "Registrar"}
+          <Button
+            type="submit"
+            disabled={form.formState.isSubmitting || uploadingFile}
+          >
+            {form.formState.isSubmitting || uploadingFile
+              ? "Salvando e enviando..."
+              : "Registrar"}
           </Button>
         </div>
       </form>

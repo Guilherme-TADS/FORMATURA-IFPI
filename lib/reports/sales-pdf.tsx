@@ -20,7 +20,11 @@ const styles = StyleSheet.create({
   totalRow: { flexDirection: "row", marginTop: 8, paddingTop: 6, borderTopWidth: 1, borderTopColor: "#000" },
 });
 
-const STATUS_LABELS: Record<string, string> = { CONFIRMED: "Confirmada", CANCELLED: "Cancelada" };
+const STATUS_LABELS: Record<string, string> = {
+  CONFIRMED: "Confirmada",
+  PENDING: "Pendente",
+  CANCELLED: "Cancelada",
+};
 
 export function SalesReportPdf({
   rows,

@@ -60,9 +60,9 @@ export function BuyerCard({
   const [notes, setNotes] = useState(buyer.notes ?? "");
 
   const salesCount = buyer.sales.length;
-  const totalSpent = buyer.sales
-    .filter((s) => s.status === "CONFIRMED")
-    .reduce((sum, s) => sum + s.amount_cents, 0);
+  const confirmedSales = buyer.sales.filter((s) => s.status === "CONFIRMED");
+  const pendingSales = buyer.sales.filter((s) => s.status === "PENDING");
+  const totalSpent = confirmedSales.reduce((sum, s) => sum + s.amount_cents, 0);
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -300,7 +300,12 @@ export function BuyerCard({
               <div className="mb-2 flex items-center justify-between text-xs font-semibold">
                 <span>Histórico de Compras</span>
                 <span className="font-figures text-emerald-600 dark:text-emerald-400">
-                  Total gasto: {centsToBRL(totalSpent)}
+                  Total confirmado: {centsToBRL(totalSpent)}
+                  {pendingSales.length > 0 ? (
+                    <span className="text-amber-600 dark:text-amber-400 font-normal ml-1">
+                      ({pendingSales.length} em análise)
+                    </span>
+                  ) : null}
                 </span>
               </div>
               <div className="grid gap-2">
@@ -327,10 +332,25 @@ export function BuyerCard({
                         {centsToBRL(s.amount_cents)}
                       </span>
                       <Badge
-                        variant={s.status === "CONFIRMED" ? "confirmed" : "void"}
+                        variant={
+                          s.status === "CONFIRMED"
+                            ? "confirmed"
+                            : s.status === "PENDING"
+                              ? "outline"
+                              : "void"
+                        }
+                        className={
+                          s.status === "PENDING"
+                            ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                            : undefined
+                        }
                         stamp
                       >
-                        {s.status === "CONFIRMED" ? "Confirmada" : "Cancelada"}
+                        {s.status === "CONFIRMED"
+                          ? "Confirmada"
+                          : s.status === "PENDING"
+                            ? "Pendente"
+                            : "Cancelada"}
                       </Badge>
                       <span className="text-muted-foreground font-figures text-[11px]">
                         {new Date(s.created_at).toLocaleDateString("pt-BR")}

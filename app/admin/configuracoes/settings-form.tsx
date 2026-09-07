@@ -184,7 +184,7 @@ export function SettingsForm({
           <div>
             <h2 className="label-tag">⚡ PIX Automático (Mercado Pago)</h2>
             <p className="text-muted-foreground text-xs mt-0.5">
-              Gera QR Code dinâmico exclusivo com aprovação em segundos sem precisar de envio de comprovante.
+              Gera QR Code dinâmico com aprovação em segundos sem envio de comprovante. A Chave PIX manual continuará disponível como opção alternativa.
             </p>
           </div>
           <label className="relative inline-flex cursor-pointer items-center">
@@ -234,7 +234,7 @@ export function SettingsForm({
                 {typeof window !== "undefined" ? `${window.location.origin}/api/webhooks/mercadopago` : "/api/webhooks/mercadopago"}
               </code>
               <p className="text-muted-foreground mt-1 text-[11px]">
-                No painel do Mercado Pago, configure o Webhook para eventos de <strong>Pagamentos (payments)</strong> apontando para a URL acima.
+                No painel do Mercado Pago, configure o Webhook para eventos de <strong>Pagamentos (payments)</strong> apontando para a URL acima (em produção). Em desenvolvimento local (localhost), use ferramentas como ngrok para testes.
               </p>
             </div>
           </div>

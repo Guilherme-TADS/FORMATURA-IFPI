@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { brlStringToCents } from "@/lib/money";
 import { raffleFormSchema, type RaffleFormValues } from "@/lib/schemas/raffle";
+import { SETTINGS_KEYS, type RaffleWinner } from "@/lib/settings";
 
 export type RaffleActionState = {
   error?: string;
@@ -196,5 +197,193 @@ export async function deleteRaffle(raffleId: string) {
 
   updateTag("raffles");
   revalidatePath("/admin/rifas");
+}
+
+export type DrawWinnerResult = {
+  error?: string;
+  winner?: RaffleWinner;
+};
+
+export async function drawRaffleWinner(
+  raffleId: string,
+  manualPointNumber?: number,
+  notes?: string,
+): Promise<DrawWinnerResult> {
+  try {
+    const { supabase, userId } = await requireAdmin();
+
+    const { data: raffle, error: raffleError } = await supabase
+      .from("raffles")
+      .select("id, title, slug, status")
+      .eq("id", raffleId)
+      .single();
+
+    if (raffleError || !raffle) {
+      return { error: "Rifa não encontrada." };
+    }
+
+    if (raffle.status !== "CLOSED") {
+      return { error: "A rifa precisa estar encerrada para realizar o sorteio." };
+    }
+
+    let chosenPoint: { id: string; point_number: number };
+
+    if (manualPointNumber != null) {
+      const { data: point, error: pointError } = await supabase
+        .from("raffle_points")
+        .select("id, point_number, status")
+        .eq("raffle_id", raffleId)
+        .eq("point_number", manualPointNumber)
+        .maybeSingle();
+
+      if (pointError || !point) {
+        return { error: `O número ${manualPointNumber} não existe nesta rifa.` };
+      }
+      if (point.status !== "SOLD") {
+        return { error: `O número ${manualPointNumber} não foi vendido (status atual: ${point.status}). Apenas números confirmados como vendidos podem ser sorteados.` };
+      }
+      chosenPoint = { id: point.id, point_number: point.point_number };
+    } else {
+      const { data: soldPoints, error: soldError } = await supabase
+        .from("raffle_points")
+        .select("id, point_number")
+        .eq("raffle_id", raffleId)
+        .eq("status", "SOLD");
+
+      if (soldError || !soldPoints || soldPoints.length === 0) {
+        return { error: "Não há números vendidos nesta rifa para realizar o sorteio." };
+      }
+
+      const randomIndex = Math.floor(Math.random() * soldPoints.length);
+      chosenPoint = soldPoints[randomIndex];
+    }
+
+    // Identifica o comprador do ponto sorteado
+    const { data: salePoint } = await supabase
+      .from("raffle_sale_points")
+      .select("sale_id, raffle_sales(status, buyer_id, buyers(full_name, phone))")
+      .eq("point_id", chosenPoint.id)
+      .maybeSingle();
+
+    const buyerData = (salePoint?.raffle_sales as unknown as {
+      status?: string;
+      buyers?: { full_name?: string; phone?: string } | null;
+    } | null)?.buyers;
+
+    const buyerName = buyerData?.full_name?.trim() || "Comprador não identificado";
+    const buyerPhone = buyerData?.phone?.trim() || null;
+
+    // Busca o perfil do administrador que realizou o sorteio
+    const { data: adminProfile } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", userId)
+      .single();
+
+    // Carrega o registro atual de ganhadores em system_settings
+    const { data: settingsRow } = await supabase
+      .from("system_settings")
+      .select("value")
+      .eq("key", SETTINGS_KEYS.raffleWinners)
+      .maybeSingle();
+
+    const currentWinners = (settingsRow?.value as Record<string, RaffleWinner> | undefined) ?? {};
+
+    const newWinner: RaffleWinner = {
+      raffleId,
+      pointNumber: chosenPoint.point_number,
+      buyerName,
+      buyerPhone,
+      drawnAt: new Date().toISOString(),
+      drawnByName: adminProfile?.full_name ?? "Administrador",
+      notes: notes?.trim() || null,
+    };
+
+    currentWinners[raffleId] = newWinner;
+
+    const { error: upsertErr } = await supabase.from("system_settings").upsert(
+      {
+        key: SETTINGS_KEYS.raffleWinners,
+        value: currentWinners,
+        updated_by: userId,
+      },
+      { onConflict: "key" },
+    );
+
+    if (upsertErr) {
+      return { error: "Erro ao registrar o ganhador no sistema." };
+    }
+
+    // Registra no log de auditoria
+    await supabase.from("audit_logs").insert({
+      action: "RAFFLE_WINNER_DRAWN",
+      entity_type: "raffle",
+      entity_id: raffleId,
+      user_id: userId,
+      new_data: newWinner,
+    });
+
+    updateTag("settings");
+    updateTag("raffles");
+    revalidatePath(`/admin/rifas/${raffleId}`);
+    revalidatePath(`/rifas/${raffle.slug}`);
+    revalidatePath("/rifas");
+
+    return { winner: newWinner };
+  } catch (err) {
+    if (err instanceof Error && err.message === "not authorized") {
+      return { error: "Apenas administradores podem realizar o sorteio." };
+    }
+    return { error: "Ocorreu um erro ao processar o sorteio." };
+  }
+}
+
+export async function clearRaffleWinner(raffleId: string): Promise<RaffleActionState> {
+  try {
+    const { supabase, userId } = await requireAdmin();
+
+    const { data: settingsRow } = await supabase
+      .from("system_settings")
+      .select("value")
+      .eq("key", SETTINGS_KEYS.raffleWinners)
+      .maybeSingle();
+
+    const currentWinners = (settingsRow?.value as Record<string, RaffleWinner> | undefined) ?? {};
+    if (!currentWinners[raffleId]) {
+      return {};
+    }
+
+    const previousWinner = currentWinners[raffleId];
+    delete currentWinners[raffleId];
+
+    await supabase.from("system_settings").upsert(
+      {
+        key: SETTINGS_KEYS.raffleWinners,
+        value: currentWinners,
+        updated_by: userId,
+      },
+      { onConflict: "key" },
+    );
+
+    await supabase.from("audit_logs").insert({
+      action: "RAFFLE_WINNER_CLEARED",
+      entity_type: "raffle",
+      entity_id: raffleId,
+      user_id: userId,
+      old_data: previousWinner,
+    });
+
+    updateTag("settings");
+    updateTag("raffles");
+    revalidatePath(`/admin/rifas/${raffleId}`);
+    revalidatePath("/rifas");
+
+    return {};
+  } catch (err) {
+    if (err instanceof Error && err.message === "not authorized") {
+      return { error: "Apenas administradores podem alterar o sorteio." };
+    }
+    return { error: "Erro ao limpar o ganhador." };
+  }
 }
 

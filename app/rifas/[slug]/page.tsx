@@ -6,7 +6,7 @@ import { getCurrentProfile } from "@/lib/auth/session";
 import { LinkButton } from "@/components/ui/link-button";
 import { PurchaseFlow } from "./purchase-flow";
 import { centsToBRL } from "@/lib/money";
-import { getReservationTtlMinutes, getPixInfo, getMercadoPagoConfig } from "@/lib/settings";
+import { getReservationTtlMinutes, getPixInfo, getMercadoPagoConfig, getRaffleWinner } from "@/lib/settings";
 import { getPublicRaffleBySlug, getPublicPaymentMethods } from "@/lib/public-raffles";
 
 export async function generateMetadata({
@@ -67,6 +67,8 @@ async function RaffleContent({
 
   if (!raffle) notFound();
 
+  const winner = raffle.status === "CLOSED" ? await getRaffleWinner(raffle.id!) : null;
+
   return (
     <main className="mx-auto w-full max-w-4xl flex-1 p-4 py-8 sm:p-8">
       {profile ? (
@@ -98,14 +100,21 @@ async function RaffleContent({
         />
       ) : null}
 
-      <h1 className="text-3xl font-semibold tracking-tight text-balance">
-        {raffle.title}
-      </h1>
-      {raffle.description ? (
-        <p className="text-muted-foreground mt-2 max-w-2xl whitespace-pre-wrap">
-          {raffle.description}
-        </p>
-      ) : null}
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight text-balance">
+            {raffle.title}
+          </h1>
+          {raffle.description ? (
+            <p className="text-muted-foreground mt-2 max-w-2xl whitespace-pre-wrap">
+              {raffle.description}
+            </p>
+          ) : null}
+        </div>
+        <LinkButton variant="outline" size="sm" href="/rifas/meus-bilhetes">
+          🔍 Meus Bilhetes
+        </LinkButton>
+      </div>
 
       <div className="border-border bg-card ring-foreground/8 mt-6 flex flex-wrap items-center justify-between gap-4 rounded-lg border border-dashed p-4 ring-1">
         <div>
@@ -133,9 +142,56 @@ async function RaffleContent({
       </div>
 
       {raffle.status === "CLOSED" ? (
-        <p className="border-border bg-secondary/60 mt-6 rounded-lg border border-dashed p-4 text-sm">
-          Esta rifa já foi encerrada. Obrigado a todos que participaram!
-        </p>
+        winner ? (
+          <div className="border-amber-500/40 bg-gradient-to-br from-amber-500/15 via-background to-amber-500/5 mt-6 overflow-hidden rounded-xl border-2 p-6 shadow-xs">
+            <div className="flex items-center gap-3">
+              <span className="text-3xl" aria-hidden="true">🏆</span>
+              <div>
+                <h2 className="text-xl font-bold tracking-tight text-amber-900 dark:text-amber-300">
+                  Resultado do Sorteio!
+                </h2>
+                <p className="text-muted-foreground text-xs">
+                  Sorteio realizado em {new Date(winner.drawnAt).toLocaleDateString("pt-BR")}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div className="rounded-lg border border-amber-500/30 bg-card/70 p-4">
+                <p className="label-tag text-muted-foreground">Bilhete Premiado</p>
+                <p className="font-figures mt-1 text-3xl font-black text-amber-700 dark:text-amber-400">
+                  #{winner.pointNumber}
+                </p>
+              </div>
+              <div className="rounded-lg border border-amber-500/30 bg-card/70 p-4">
+                <p className="label-tag text-muted-foreground">Ganhador(a)</p>
+                <p className="mt-1 text-xl font-bold">{winner.buyerName}</p>
+                {winner.buyerPhone ? (
+                  <p className="font-figures text-muted-foreground mt-0.5 text-xs">
+                    Telefone: {winner.buyerPhone.length >= 8 ? `${winner.buyerPhone.slice(0, 5)}****-${winner.buyerPhone.slice(-2)}` : winner.buyerPhone}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+
+            {winner.notes ? (
+              <p className="text-muted-foreground mt-3 text-xs italic">
+                {winner.notes}
+              </p>
+            ) : null}
+
+            <p className="text-muted-foreground mt-5 text-center text-xs">
+              Parabéns ao ganhador(a) e muito obrigado a todos que participaram e apoiaram nossa formatura!
+            </p>
+          </div>
+        ) : (
+          <div className="border-border bg-secondary/60 mt-6 rounded-lg border border-dashed p-4 text-center text-sm">
+            <p className="font-medium">Esta rifa já foi encerrada.</p>
+            <p className="text-muted-foreground mt-1 text-xs">
+              O sorteio está sendo processado pela comissão e o resultado do bilhete vencedor será publicado aqui em breve.
+            </p>
+          </div>
+        )
       ) : (
         <PurchaseFlow
           raffleId={raffle.id!}

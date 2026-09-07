@@ -51,7 +51,9 @@ export function DocumentRow({
     entityType === "raffle" || entityType === "financial_transaction" ? entityType : "",
   );
   const [linkId, setLinkId] = useState(entityId ?? "");
-  const [editDescription, setEditDescription] = useState(description ?? "");
+  const [editDescription, setEditDescription] = useState(
+    description?.startsWith("sha256:") ? "" : description ?? "",
+  );
   const [deleteReason, setDeleteReason] = useState("");
 
   async function handleDownload() {
@@ -224,9 +226,19 @@ export function DocumentRow({
     <tr className="border-border border-b border-dashed last:border-0">
       <td className="py-2.5 pr-4">
         <div className="font-medium">{fileName}</div>
-        <div className="text-muted-foreground text-xs">
-          {(fileSize / 1024).toFixed(0)} KB
-          {description ? ` · ${description}` : ""}
+        <div className="text-muted-foreground text-xs flex items-center gap-1.5 flex-wrap mt-0.5">
+          <span>{(fileSize / 1024).toFixed(0)} KB</span>
+          {description && !description.startsWith("sha256:") ? (
+            <span>· {description}</span>
+          ) : null}
+          {description?.startsWith("sha256:") ? (
+            <span
+              className="inline-flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 rounded px-1.5 py-0.2 border border-emerald-500/20"
+              title={`Hash de integridade: ${description.slice(7)}`}
+            >
+              ✓ Integridade verificada
+            </span>
+          ) : null}
         </div>
       </td>
       <td className="py-2.5 pr-4">

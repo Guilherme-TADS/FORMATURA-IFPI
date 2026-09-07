@@ -5,7 +5,9 @@ import { getCurrentProfile } from "@/lib/auth/session";
 import { Badge } from "@/components/ui/badge";
 import { LinkButton } from "@/components/ui/link-button";
 import { centsToBRL } from "@/lib/money";
+import { getRaffleWinner } from "@/lib/settings";
 import { RaffleActions } from "./raffle-actions";
+import { RaffleDrawCard } from "./raffle-draw-card";
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
@@ -27,7 +29,7 @@ export default async function RaffleDetailPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: raffle }, profile, { data: points }, { data: sales }, { count: totalSalesCount }] = await Promise.all([
+  const [{ data: raffle }, profile, { data: points }, { data: sales }, { count: totalSalesCount }, winner] = await Promise.all([
     supabase.from("raffles").select("*").eq("id", id).single(),
     getCurrentProfile(),
     supabase.from("raffle_points").select("status").eq("raffle_id", id),
@@ -40,6 +42,7 @@ export default async function RaffleDetailPage({
       .from("raffle_sales")
       .select("id", { count: "exact", head: true })
       .eq("raffle_id", id),
+    getRaffleWinner(id),
   ]);
 
   if (!raffle) notFound();
@@ -111,6 +114,14 @@ export default async function RaffleDetailPage({
           <p className="font-figures mt-1 text-xl font-semibold">{centsToBRL(revenue)}</p>
         </div>
       </div>
+
+      <RaffleDrawCard
+        raffleId={id}
+        raffleStatus={raffle.status}
+        winner={winner}
+        soldCount={counts.SOLD}
+        isAdmin={isAdmin}
+      />
 
       {raffle.description ? (
         <p className="mb-4 text-sm whitespace-pre-wrap">{raffle.description}</p>

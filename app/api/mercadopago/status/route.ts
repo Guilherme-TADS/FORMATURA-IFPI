@@ -81,6 +81,14 @@ export async function GET(req: Request) {
 
             return NextResponse.json({ status: "CONFIRMED" });
           }
+
+          if (payment.status === "cancelled" || payment.status === "rejected") {
+            await admin.rpc("rpc_cancel_sale", {
+              p_sale_id: saleId,
+              p_reason: `PIX Mercado Pago ${payment.status === "cancelled" ? "expirado/cancelado" : "rejeitado"}`,
+            });
+            return NextResponse.json({ status: "CANCELLED" });
+          }
         } catch {
           // Ignora falha temporária de checagem externa e continua como PENDING
         }

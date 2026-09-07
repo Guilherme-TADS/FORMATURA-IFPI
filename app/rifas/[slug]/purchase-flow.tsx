@@ -107,6 +107,17 @@ export function PurchaseFlow({
     }
   }, [pixMethod, form]);
 
+  const selectedPaymentMethodId = useWatch({
+    control: form.control,
+    name: "paymentMethodId",
+  });
+
+  const isPixSelected = useMemo(() => {
+    if (!sellerName) return true;
+    const current = paymentMethods.find((m) => m.id === selectedPaymentMethodId);
+    return !current || current.name?.toUpperCase() === "PIX";
+  }, [sellerName, paymentMethods, selectedPaymentMethodId]);
+
   const totalCents = selected.length * unitPriceCents;
 
   const pixCode = useMemo(() => {
@@ -620,7 +631,7 @@ export function PurchaseFlow({
                   )}
                 >
                   <span>📄 PIX Manual</span>
-                  <span className="text-[10px] font-normal opacity-85">Chave da Turma · Zero taxas</span>
+                  <span className="text-[10px] font-normal opacity-85">Chave da Turma · Envio de comprovante</span>
                 </button>
               </div>
             ) : null}
@@ -693,11 +704,36 @@ export function PurchaseFlow({
               />
             </div>
 
-            <input
-              type="hidden"
-              {...form.register("paymentMethodId")}
-              value={pixMethod?.id ?? ""}
-            />
+            {sellerName && paymentMethods.length > 1 ? (
+              <FormField
+                control={form.control}
+                name="paymentMethodId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Forma de pagamento recebida pelo vendedor</FormLabel>
+                    <FormControl>
+                      <select
+                        {...field}
+                        className="border-input h-9 w-full rounded-lg border bg-transparent px-2.5 text-sm outline-none"
+                      >
+                        {paymentMethods.map((m) => (
+                          <option key={m.id} value={m.id ?? ""}>
+                            {m.name}
+                          </option>
+                        ))}
+                      </select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ) : (
+              <input
+                type="hidden"
+                {...form.register("paymentMethodId")}
+                value={pixMethod?.id ?? ""}
+              />
+            )}
 
             {pixMode === "AUTOMATIC" && !sellerName ? (
               <>
@@ -719,7 +755,7 @@ export function PurchaseFlow({
                   {generatingMp ? "Gerando PIX..." : "Gerar PIX e Pagar"}
                 </Button>
               </>
-            ) : (
+            ) : isPixSelected ? (
               <>
                 <PixQrCode
                   code={pixCode}
@@ -756,6 +792,19 @@ export function PurchaseFlow({
                     : sellerName
                       ? "Confirmar Venda (Vendedor)"
                       : "Confirmar Compra"}
+                </Button>
+              </>
+            ) : (
+              <>
+                <div className="border-border bg-secondary/40 rounded-lg border p-3.5 text-xs text-muted-foreground space-y-1">
+                  <p className="font-semibold text-foreground">💵 Pagamento em Dinheiro (Venda Presencial)</p>
+                  <p>
+                    Confirme que recebeu <strong>{centsToBRL(totalCents)}</strong> em mãos do comprador. A venda será confirmada e vinculada à sua conta imediatamente.
+                  </p>
+                </div>
+
+                <Button type="submit" size="lg" disabled={submitting}>
+                  {submitting ? "Processando…" : "Confirmar Venda em Dinheiro"}
                 </Button>
               </>
             )}

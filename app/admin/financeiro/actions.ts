@@ -10,7 +10,7 @@ import {
   type EditTransactionValues,
 } from "@/lib/schemas/financial";
 
-export type FinancialActionState = { error?: string };
+export type FinancialActionState = { error?: string; id?: string };
 
 async function requireAdmin() {
   const supabase = await createClient();
@@ -67,27 +67,31 @@ export async function createTransaction(
       }
     }
 
-    const { error } = await supabase.from("financial_transactions").insert({
-      type,
-      description: parsed.data.description,
-      category_id: parsed.data.categoryId,
-      supplier_id: supplierId,
-      amount_cents: amountCents,
-      occurred_on: parsed.data.occurredOn,
-      responsible_id: userId,
-      payment_method_id: parsed.data.paymentMethodId || null,
-      origin: parsed.data.origin || null,
-      notes: parsed.data.notes || null,
-      created_by: userId,
-    });
+    const { data: inserted, error } = await supabase
+      .from("financial_transactions")
+      .insert({
+        type,
+        description: parsed.data.description,
+        category_id: parsed.data.categoryId,
+        supplier_id: supplierId,
+        amount_cents: amountCents,
+        occurred_on: parsed.data.occurredOn,
+        responsible_id: userId,
+        payment_method_id: parsed.data.paymentMethodId || null,
+        origin: parsed.data.origin || null,
+        notes: parsed.data.notes || null,
+        created_by: userId,
+      })
+      .select("id")
+      .single();
 
-    if (error) return { error: "Não foi possível salvar o lançamento." };
+    if (error || !inserted) return { error: "Não foi possível salvar o lançamento." };
 
     revalidatePath("/admin/financeiro");
     revalidatePath(
       type === "INCOME" ? "/admin/financeiro/receitas" : "/admin/financeiro/despesas",
     );
-    return {};
+    return { id: inserted.id };
   } catch (err) {
     if (err instanceof Error && err.message === "not authorized") {
       return { error: "Apenas administradores podem lançar movimentações financeiras." };

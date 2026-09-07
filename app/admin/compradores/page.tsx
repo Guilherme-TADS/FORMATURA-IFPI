@@ -58,6 +58,7 @@ export default async function BuyersPage({
         id,
         amount_cents,
         status,
+        seller_id,
         created_at,
         raffles (
           title
@@ -90,6 +91,7 @@ export default async function BuyersPage({
       id: string;
       amount_cents: number;
       status: string;
+      seller_id: string | null;
       created_at: string;
       raffles: { title: string } | null;
       raffle_sale_points: Array<{
@@ -105,17 +107,26 @@ export default async function BuyersPage({
       instagram: b.instagram,
       notes: b.notes,
       createdAt: b.created_at,
-      sales: sales.map((s) => ({
-        id: s.id,
-        amount_cents: s.amount_cents,
-        status: s.status,
-        created_at: s.created_at,
-        raffle_title: s.raffles?.title,
-        points: (s.raffle_sale_points ?? [])
-          .map((sp) => sp.raffle_points?.point_number)
-          .filter((n): n is number => typeof n === "number")
-          .sort((x, y) => x - y),
-      })),
+      sales: sales.map((s) => {
+        const effectiveStatus =
+          s.status === "CANCELLED"
+            ? "CANCELLED"
+            : s.seller_id
+              ? "CONFIRMED"
+              : "PENDING";
+
+        return {
+          id: s.id,
+          amount_cents: s.amount_cents,
+          status: effectiveStatus,
+          created_at: s.created_at,
+          raffle_title: s.raffles?.title,
+          points: (s.raffle_sale_points ?? [])
+            .map((sp) => sp.raffle_points?.point_number)
+            .filter((n): n is number => typeof n === "number")
+            .sort((x, y) => x - y),
+        };
+      }),
     };
   });
 

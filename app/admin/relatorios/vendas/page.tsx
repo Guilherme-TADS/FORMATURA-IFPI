@@ -16,8 +16,13 @@ export const instant = false;
 
 export const metadata: Metadata = { title: "Relatório de vendas" };
 
+const STATUS_LABELS: Record<string, string> = {
+  CONFIRMED: "Confirmada",
+  PENDING: "Pendente",
+  CANCELLED: "Cancelada",
+};
+
 const PAGE_SIZE = 25;
-const STATUS_LABELS: Record<string, string> = { CONFIRMED: "Confirmada", CANCELLED: "Cancelada" };
 
 type SearchParams = {
   buyer?: string;
@@ -72,6 +77,9 @@ export default async function SalesReportPage({
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const pageTotalCents = rows.reduce((sum, r) => sum + r.amountCents, 0);
+  const pageConfirmedCents = rows
+    .filter((r) => r.status === "CONFIRMED")
+    .reduce((sum, r) => sum + r.amountCents, 0);
   const exportQuery = buildQuery(sp, { page: undefined });
   const exportPrefix = exportQuery ? `${exportQuery}&` : "";
 
@@ -79,8 +87,11 @@ export default async function SalesReportPage({
     <div>
       <h1 className="mb-1 text-2xl font-semibold tracking-tight">Relatório de vendas</h1>
       <p className="text-muted-foreground mb-6 text-sm">
-        {total} venda{total === 1 ? "" : "s"} encontrada{total === 1 ? "" : "s"} · Total nesta
-        página: {centsToBRL(pageTotalCents)}
+        {total} venda{total === 1 ? "" : "s"} encontrada{total === 1 ? "" : "s"} · Confirmado nesta
+        página: <span className="text-foreground font-semibold font-figures">{centsToBRL(pageConfirmedCents)}</span>
+        {pageTotalCents !== pageConfirmedCents ? (
+          <span> (total listado: {centsToBRL(pageTotalCents)})</span>
+        ) : null}
       </p>
 
       <form className="mb-4 grid gap-2 sm:grid-cols-4">
@@ -129,6 +140,7 @@ export default async function SalesReportPage({
         >
           <option value="">Todos os status</option>
           <option value="CONFIRMED">Confirmada</option>
+          <option value="PENDING">Pendente</option>
           <option value="CANCELLED">Cancelada</option>
         </select>
         <Input name="de" defaultValue={sp.de} type="date" />
@@ -214,7 +226,21 @@ export default async function SalesReportPage({
                   <td className="py-2.5 pr-4">{row.sellerName}</td>
                   <td className="py-2.5 pr-4">{row.raffleTitle}</td>
                   <td className="py-2.5 pr-4">
-                    <Badge variant={row.status === "CONFIRMED" ? "confirmed" : "void"} stamp>
+                    <Badge
+                      variant={
+                        row.status === "CONFIRMED"
+                          ? "confirmed"
+                          : row.status === "PENDING"
+                            ? "outline"
+                            : "void"
+                      }
+                      className={
+                        row.status === "PENDING"
+                          ? "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                          : undefined
+                      }
+                      stamp
+                    >
                       {STATUS_LABELS[row.status] ?? row.status}
                     </Badge>
                   </td>

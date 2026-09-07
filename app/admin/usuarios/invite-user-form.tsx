@@ -16,6 +16,12 @@ const ROLE_LABELS: Record<Role, string> = {
   VISUALIZADOR: "Visualizador",
 };
 
+const ROLE_DESCRIPTIONS: Record<Role, string> = {
+  ADMIN: "Acesso total: gerencia rifas, vendas, financeiro, documentos, usuários e configurações.",
+  VENDEDOR: "Vendas assistidas e consulta de compradores. Sem acesso a financeiro ou configurações.",
+  VISUALIZADOR: "Auditoria e conselho fiscal: leitura de relatórios e financeiro (sem permissão de edição).",
+};
+
 export function InviteUserForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -66,6 +72,9 @@ export function InviteUserForm() {
       <Button type="submit" disabled={pending}>
         {pending ? "Enviando…" : "Convidar"}
       </Button>
+      <p className="text-muted-foreground sm:col-span-4 text-xs pt-1 border-t border-border/50">
+        <span className="font-semibold text-foreground">Papel ({ROLE_LABELS[role]}):</span> {ROLE_DESCRIPTIONS[role]}
+      </p>
     </form>
   );
 }

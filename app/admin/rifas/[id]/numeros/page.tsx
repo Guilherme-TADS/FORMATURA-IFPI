@@ -63,7 +63,15 @@ export default async function RaffleNumbersPage({
 
   let query = supabase
     .from("raffle_points")
-    .select("point_number, status", { count: "exact" })
+    .select(
+      `point_number, status,
+       raffle_sale_points (
+         raffle_sales (
+           buyers ( full_name )
+         )
+       )`,
+      { count: "exact" },
+    )
     .eq("raffle_id", id)
     .order("point_number", { ascending: true });
 
@@ -125,21 +133,37 @@ export default async function RaffleNumbersPage({
       </div>
 
       <div className="grid grid-cols-[repeat(auto-fill,minmax(64px,1fr))] gap-2">
-        {(pointsPage ?? []).map((point) => (
-          <div
-            key={point.point_number}
-            title={statusLabels[point.status]}
-            className={cn(
-              "flex flex-col items-center rounded-md border py-2 text-xs font-medium",
-              statusClasses[point.status],
-            )}
-          >
-            <span className="font-figures text-sm font-semibold">{point.point_number}</span>
-            <span className="mt-0.5 text-[9px] font-semibold tracking-wide uppercase opacity-70">
-              {statusLabels[point.status]}
-            </span>
-          </div>
-        ))}
+        {(pointsPage ?? []).map((point) => {
+          const rawSalePoints = point.raffle_sale_points as Array<{
+            raffle_sales: { buyers: { full_name?: string } | null } | null;
+          }> | null;
+          const buyerName = rawSalePoints?.[0]?.raffle_sales?.buyers?.full_name;
+          const tooltip =
+            point.status === "SOLD" && buyerName
+              ? `Vendido para: ${buyerName}`
+              : statusLabels[point.status];
+
+          return (
+            <div
+              key={point.point_number}
+              title={tooltip}
+              className={cn(
+                "flex flex-col items-center rounded-md border py-2 text-xs font-medium transition-all hover:scale-105 hover:shadow-xs",
+                statusClasses[point.status],
+              )}
+            >
+              <span className="font-figures text-sm font-semibold">{point.point_number}</span>
+              <span className="mt-0.5 text-[9px] font-semibold tracking-wide uppercase opacity-70">
+                {statusLabels[point.status]}
+              </span>
+              {buyerName && point.status === "SOLD" ? (
+                <span className="mt-0.5 max-w-[56px] truncate text-[8px] text-confirmed font-normal opacity-90">
+                  {buyerName.split(" ")[0]}
+                </span>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
 
       {!numero && totalPages > 1 ? (

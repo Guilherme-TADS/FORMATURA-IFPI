@@ -74,7 +74,7 @@ export function CategoryItem({
   function handleDelete() {
     if (
       !window.confirm(
-        `Tem certeza que deseja excluir a categoria "${name}"?`,
+        `Tem certeza que deseja excluir a categoria "${name}"?\n\nImportante: Categorias que já possuem movimentações financeiras vinculadas não podem ser excluídas para preservar o histórico contábil (nesse caso, use a opção de desativar).`,
       )
     ) {
       return;

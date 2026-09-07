@@ -42,7 +42,11 @@ export function RaffleActions({
   }
 
   function handleClose() {
-    if (!window.confirm("Encerrar esta rifa? Novas vendas serão bloqueadas.")) {
+    if (
+      !window.confirm(
+        "Tem certeza que deseja encerrar esta rifa?\n\nNovas compras serão bloqueadas definitivamente para a realização do sorteio.",
+      )
+    ) {
       return;
     }
     startTransition(async () => {
@@ -88,14 +92,14 @@ export function RaffleActions({
             Encerrar rifa
           </Button>
         ) : null}
-        {status !== "CANCELLED" ? (
+        {status === "OPEN" ? (
           <Button
             variant="outline"
             size="sm"
             disabled={pending}
             onClick={() => setCancelling((v) => !v)}
           >
-            Cancelar rifa
+            {cancelling ? "Fechar cancelamento" : "Cancelar rifa"}
           </Button>
         ) : null}
         {canDelete ? (

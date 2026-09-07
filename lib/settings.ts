@@ -13,6 +13,7 @@ export const SETTINGS_KEYS = {
   reservationTtlMinutes: "reservation_ttl_minutes",
   pixInfo: "pix_info",
   mercadoPagoConfig: "mercadopago_config",
+  raffleWinners: "raffle_winners",
 } as const;
 
 export type EventInfo = {
@@ -101,6 +102,26 @@ export async function getMercadoPagoConfig(): Promise<MercadoPagoConfig> {
     config.accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
   }
   return config;
+}
+
+export type RaffleWinner = {
+  raffleId: string;
+  pointNumber: number;
+  buyerName: string;
+  buyerPhone?: string | null;
+  drawnAt: string;
+  drawnByName?: string | null;
+  notes?: string | null;
+};
+
+export async function getRaffleWinners(): Promise<Record<string, RaffleWinner>> {
+  const value = await getSetting<Record<string, RaffleWinner>>(SETTINGS_KEYS.raffleWinners);
+  return value ?? {};
+}
+
+export async function getRaffleWinner(raffleId: string): Promise<RaffleWinner | null> {
+  const winners = await getRaffleWinners();
+  return winners[raffleId] ?? null;
 }
 
 export async function getAllSettings() {

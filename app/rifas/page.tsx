@@ -17,10 +17,20 @@ export default async function PublicRafflesPage() {
 
   return (
     <main className="mx-auto w-full max-w-3xl flex-1 p-4 py-10 sm:p-10">
-      <h1 className="mb-2 text-3xl font-semibold tracking-tight">Rifas</h1>
-      <p className="text-muted-foreground mb-8">
-        Escolha seus números e apoie {event.name}.
-      </p>
+      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="mb-2 text-3xl font-semibold tracking-tight">Rifas</h1>
+          <p className="text-muted-foreground">
+            Escolha seus números e apoie {event.name}.
+          </p>
+        </div>
+        <Link
+          href="/rifas/meus-bilhetes"
+          className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-sm font-medium shadow-xs transition-colors hover:bg-muted/50"
+        >
+          <span>🔍</span> Consultar Meus Bilhetes
+        </Link>
+      </div>
 
       {!raffles || raffles.length === 0 ? (
         <p className="text-muted-foreground">

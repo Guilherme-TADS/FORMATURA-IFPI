@@ -9,8 +9,12 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   SALE_CANCELLED: "Venda cancelada",
   RAFFLE_CLOSED: "Rifa encerrada",
   RAFFLE_CANCELLED: "Rifa cancelada",
+  RAFFLE_DELETED: "Rifa excluída",
+  RAFFLE_WINNER_DRAWN: "Ganhador da rifa sorteado",
+  RAFFLE_WINNER_CLEARED: "Sorteio de rifa removido",
   FINANCIAL_TRANSACTION_CREATED: "Lançamento criado",
   FINANCIAL_TRANSACTION_UPDATED: "Lançamento alterado",
+  FINANCIAL_TRANSACTION_DELETED: "Lançamento excluído",
   ATTACHMENT_DELETED: "Documento excluído",
 };
 
