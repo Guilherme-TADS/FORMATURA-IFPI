@@ -2,7 +2,7 @@
 
 import { revalidatePath, updateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { SETTINGS_KEYS, type EventInfo, type PixInfo } from "@/lib/settings";
+import { SETTINGS_KEYS, type EventInfo, type PixInfo, type MercadoPagoConfig } from "@/lib/settings";
 import { DEFAULT_UPLOAD_LIMITS } from "@/lib/uploads";
 import type { Json } from "@/types/database";
 
@@ -30,6 +30,7 @@ export async function updateSettings(values: {
   maxUploadSizeMb: number;
   reservationTtlMinutes: number;
   pixInfo?: PixInfo;
+  mercadoPagoConfig?: MercadoPagoConfig;
 }): Promise<SettingsActionState> {
   if (!values.eventInfo.name.trim()) {
     return { error: "Informe o nome do evento." };
@@ -80,6 +81,18 @@ export async function updateSettings(values: {
           key: values.pixInfo.key.trim(),
           merchantName: values.pixInfo.merchantName.trim(),
           merchantCity: values.pixInfo.merchantCity.trim(),
+        },
+        updated_by: userId,
+      });
+    }
+
+    if (values.mercadoPagoConfig) {
+      rows.push({
+        key: SETTINGS_KEYS.mercadoPagoConfig,
+        value: {
+          enabled: Boolean(values.mercadoPagoConfig.enabled),
+          accessToken: values.mercadoPagoConfig.accessToken.trim(),
+          publicKey: values.mercadoPagoConfig.publicKey?.trim() || "",
         },
         updated_by: userId,
       });

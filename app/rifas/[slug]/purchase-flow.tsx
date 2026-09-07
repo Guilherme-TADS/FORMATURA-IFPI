@@ -44,6 +44,7 @@ export function PurchaseFlow({
   reservationTtlMinutes,
   pixInfo,
   sellerName,
+  mercadoPagoEnabled = false,
 }: {
   raffleId: string;
   raffleSlug: string;
@@ -52,6 +53,7 @@ export function PurchaseFlow({
   reservationTtlMinutes: number;
   pixInfo?: PixInfo;
   sellerName?: string | null;
+  mercadoPagoEnabled?: boolean;
 }) {
   const router = useRouter();
   const storageKey = `${RESERVATION_STORAGE_KEY_PREFIX}${raffleId}`;
@@ -65,6 +67,19 @@ export function PurchaseFlow({
   const [submitting, setSubmitting] = useState(false);
   const [reserving, setReserving] = useState(false);
   const [cancellingReservation, setCancellingReservation] = useState(false);
+
+  const [pixMode, setPixMode] = useState<"AUTOMATIC" | "MANUAL">(
+    mercadoPagoEnabled && !sellerName ? "AUTOMATIC" : "MANUAL",
+  );
+  const [mpPayment, setMpPayment] = useState<{
+    saleId: string;
+    qrCode: string;
+    qrCodeBase64: string;
+    paymentId: number;
+  } | null>(null);
+  const [generatingMp, setGeneratingMp] = useState(false);
+  const [checkingMpStatus, setCheckingMpStatus] = useState(false);
+  const [copiedMpCode, setCopiedMpCode] = useState(false);
 
   const pixMethod = useMemo(() => {
     return (
@@ -80,6 +95,7 @@ export function PurchaseFlow({
       phone: "",
       whatsapp: "",
       instagram: "",
+      email: "",
       notes: "",
       paymentMethodId: pixMethod?.id ?? "",
     },
@@ -303,6 +319,118 @@ export function PurchaseFlow({
     router.push(`/rifas/${raffleSlug}/confirmacao/${receipt.saleId}`);
   }
 
+  useEffect(() => {
+    if (!mpPayment?.saleId) return;
+    let active = true;
+
+    async function checkStatus() {
+      try {
+        const res = await fetch(
+          `/api/mercadopago/status?saleId=${mpPayment!.saleId}&paymentId=${mpPayment!.paymentId}`,
+        );
+        const data = await res.json();
+        if (data.status === "CONFIRMED" && active) {
+          toast.success("🎉 Pagamento aprovado com sucesso!");
+          const receipt: SaleReceipt = {
+            saleId: mpPayment!.saleId,
+            raffleTitle: "",
+            buyerName: form.getValues("fullName"),
+            pointNumbers: reservation?.pointNumbers ?? [],
+            amountCents: totalCents,
+            paymentMethod: "PIX Automático",
+            status: "CONFIRMED",
+            createdAt: new Date().toISOString(),
+          };
+          sessionStorage.setItem(`receipt:${mpPayment!.saleId}`, JSON.stringify(receipt));
+          sessionStorage.removeItem(storageKey);
+          router.push(`/rifas/${raffleSlug}/confirmacao/${mpPayment!.saleId}`);
+        }
+      } catch {
+        // network polling issue
+      }
+    }
+
+    const interval = setInterval(checkStatus, 3000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [mpPayment, form, reservation, totalCents, raffleSlug, storageKey, router]);
+
+  async function handleStartMercadoPago() {
+    const valid = await form.trigger(["fullName", "phone"]);
+    if (!valid) return;
+    if (!reservation) return;
+
+    setGeneratingMp(true);
+    try {
+      const res = await fetch("/api/mercadopago/create-pix", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          raffleId,
+          reservationToken: reservation.token,
+          fullName: form.getValues("fullName"),
+          phone: form.getValues("phone"),
+          whatsapp: form.getValues("whatsapp"),
+          instagram: form.getValues("instagram"),
+          email: form.getValues("email"),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        toast.error(data.error || "Não foi possível gerar a cobrança PIX.");
+        return;
+      }
+
+      setMpPayment({
+        saleId: data.saleId,
+        qrCode: data.qrCode,
+        qrCodeBase64: data.qrCodeBase64,
+        paymentId: data.paymentId,
+      });
+      toast.success("Código PIX gerado! Pague pelo seu banco para confirmação instantânea.");
+    } catch {
+      toast.error("Erro de conexão ao gerar o PIX Automático.");
+    } finally {
+      setGeneratingMp(false);
+    }
+  }
+
+  async function handleManualStatusCheck() {
+    if (!mpPayment?.saleId) return;
+    setCheckingMpStatus(true);
+    try {
+      const res = await fetch(
+        `/api/mercadopago/status?saleId=${mpPayment.saleId}&paymentId=${mpPayment.paymentId}`,
+      );
+      const data = await res.json();
+      if (data.status === "CONFIRMED") {
+        toast.success("🎉 Pagamento confirmado com sucesso!");
+        const receipt: SaleReceipt = {
+          saleId: mpPayment.saleId,
+          raffleTitle: "",
+          buyerName: form.getValues("fullName"),
+          pointNumbers: reservation?.pointNumbers ?? [],
+          amountCents: totalCents,
+          paymentMethod: "PIX Automático",
+          status: "CONFIRMED",
+          createdAt: new Date().toISOString(),
+        };
+        sessionStorage.setItem(`receipt:${mpPayment.saleId}`, JSON.stringify(receipt));
+        sessionStorage.removeItem(storageKey);
+        router.push(`/rifas/${raffleSlug}/confirmacao/${mpPayment.saleId}`);
+      } else {
+        toast.info("Pagamento ainda não detectado pelo banco. Se já realizou a transferência, aguarde alguns segundos.");
+      }
+    } catch {
+      toast.error("Não foi possível verificar no momento.");
+    } finally {
+      setCheckingMpStatus(false);
+    }
+  }
+
   const minutes = Math.floor(remainingSeconds / 60);
   const seconds = remainingSeconds % 60;
 
@@ -382,105 +510,258 @@ export function PurchaseFlow({
         </div>
       </div>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
-          <FormField
-            control={form.control}
-            name="fullName"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Nome completo</FormLabel>
-                <FormControl>
-                  <Input {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="phone"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Telefone</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder="(11) 99999-9999" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="whatsapp"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>WhatsApp (opcional)</FormLabel>
-                <FormControl>
-                  <Input {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="instagram"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Instagram (opcional)</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder="@usuario" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <input
-            type="hidden"
-            {...form.register("paymentMethodId")}
-            value={pixMethod?.id ?? ""}
-          />
-
-          <PixQrCode
-            code={pixCode}
-            amountCents={totalCents}
-            pixKey={pixInfo?.key}
-          />
-
-          <div className="border-border bg-secondary/40 grid gap-1.5 rounded-lg border border-dashed p-3.5">
-            <label className="text-sm font-medium">
-              Anexar comprovante do PIX {sellerName ? "(opcional para vendedor)" : "(obrigatório)"}
-            </label>
+      {mpPayment ? (
+        <div className="border-border bg-card grid gap-4 rounded-xl border p-5 shadow-sm">
+          <div className="text-center">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-confirmed-bg px-2.5 py-1 text-xs font-medium text-confirmed border border-confirmed/30">
+              <span className="h-2 w-2 rounded-full bg-confirmed animate-ping" />
+              PIX Gerado com Sucesso
+            </span>
+            <h3 className="mt-2 text-base font-semibold">Pague para Confirmar</h3>
             <p className="text-muted-foreground text-xs">
-              Após realizar o pagamento do valor exato, anexe o comprovante (foto ou PDF) abaixo para validação.
+              Abra o app do seu banco e aponte a câmera para o QR Code ou copie o código Pix abaixo.
             </p>
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp,application/pdf"
-              onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
-              className="text-muted-foreground file:bg-card file:text-foreground file:border-border mt-1 text-xs file:mr-3 file:rounded-md file:border file:px-2.5 file:py-1.5 file:text-xs file:font-medium"
-            />
-            {uploading ? (
-              <p className="text-pending text-xs font-medium">Enviando comprovante…</p>
-            ) : null}
-            {attachmentId ? (
-              <p className="text-confirmed flex items-center gap-1 text-xs font-medium">
-                <span aria-hidden>✓</span> Comprovante anexado
-              </p>
-            ) : null}
           </div>
 
-          <Button type="submit" size="lg" disabled={submitting || uploading}>
-            {submitting
-              ? "Processando…"
-              : sellerName
-                ? "Confirmar Venda (Vendedor)"
-                : "Confirmar Compra"}
-          </Button>
-        </form>
-      </Form>
+          {mpPayment.qrCodeBase64 ? (
+            <div className="flex justify-center p-2 bg-white rounded-lg border border-border w-fit mx-auto shadow-inner">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`data:image/png;base64,${mpPayment.qrCodeBase64}`}
+                alt="QR Code PIX Mercado Pago"
+                className="h-48 w-48 object-contain"
+              />
+            </div>
+          ) : null}
+
+          {mpPayment.qrCode ? (
+            <div className="grid gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Código Pix Copia e Cola:</label>
+              <div className="flex gap-2">
+                <Input
+                  readOnly
+                  value={mpPayment.qrCode}
+                  className="font-mono text-xs select-all bg-secondary/50"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(mpPayment.qrCode);
+                    setCopiedMpCode(true);
+                    toast.success("Código PIX copiado!");
+                    setTimeout(() => setCopiedMpCode(false), 2500);
+                  }}
+                >
+                  {copiedMpCode ? "Copiado!" : "Copiar"}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="border-border bg-secondary/40 rounded-lg border p-3 flex items-center gap-3">
+            <div className="h-3 w-3 rounded-full bg-pending animate-pulse shrink-0" />
+            <div className="text-xs">
+              <p className="font-medium text-foreground">Aguardando confirmação bancária...</p>
+              <p className="text-muted-foreground text-[11px]">
+                Assim que o pagamento for concluído no seu banco, esta tela atualizará automaticamente em instantes.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={checkingMpStatus}
+              onClick={handleManualStatusCheck}
+            >
+              {checkingMpStatus ? "Verificando..." : "Já paguei! Verificar agora"}
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              onClick={() => setMpPayment(null)}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              Trocar forma de pagamento
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
+            {mercadoPagoEnabled && !sellerName ? (
+              <div className="grid grid-cols-2 gap-2 rounded-lg bg-secondary/50 p-1 mb-2 border border-border">
+                <button
+                  type="button"
+                  onClick={() => setPixMode("AUTOMATIC")}
+                  className={cn(
+                    "flex flex-col items-center justify-center py-2 px-3 rounded-md transition-all text-xs font-semibold",
+                    pixMode === "AUTOMATIC"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <span>⚡ PIX Automático</span>
+                  <span className="text-[10px] font-normal opacity-85">Instantâneo · Sem comprovante</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPixMode("MANUAL")}
+                  className={cn(
+                    "flex flex-col items-center justify-center py-2 px-3 rounded-md transition-all text-xs font-semibold",
+                    pixMode === "MANUAL"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <span>📄 PIX Manual</span>
+                  <span className="text-[10px] font-normal opacity-85">Chave da Turma · Zero taxas</span>
+                </button>
+              </div>
+            ) : null}
+
+            <FormField
+              control={form.control}
+              name="fullName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nome completo</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Telefone</FormLabel>
+                  <FormControl>
+                    <Input {...field} placeholder="(11) 99999-9999" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>E-mail (opcional)</FormLabel>
+                  <FormControl>
+                    <Input {...field} type="email" placeholder="seu@email.com" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <FormField
+                control={form.control}
+                name="whatsapp"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>WhatsApp (opcional)</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="instagram"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Instagram (opcional)</FormLabel>
+                    <FormControl>
+                      <Input {...field} placeholder="@usuario" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <input
+              type="hidden"
+              {...form.register("paymentMethodId")}
+              value={pixMethod?.id ?? ""}
+            />
+
+            {pixMode === "AUTOMATIC" && !sellerName ? (
+              <>
+                <div className="border-border bg-secondary/30 rounded-lg border p-3.5 text-xs text-muted-foreground space-y-1">
+                  <p className="font-semibold text-foreground flex items-center gap-1.5">
+                    <span>⚡ Como funciona o PIX Automático:</span>
+                  </p>
+                  <p>
+                    Ao clicar no botão abaixo, geraremos um QR Code dinâmico exclusivo do Banco Central. Assim que você pagar no app do seu banco, o sistema confirma seus números em poucos segundos de forma automática sem precisar enviar comprovante!
+                  </p>
+                </div>
+
+                <Button
+                  type="button"
+                  size="lg"
+                  disabled={generatingMp}
+                  onClick={handleStartMercadoPago}
+                >
+                  {generatingMp ? "Gerando PIX..." : "Gerar PIX e Pagar"}
+                </Button>
+              </>
+            ) : (
+              <>
+                <PixQrCode
+                  code={pixCode}
+                  amountCents={totalCents}
+                  pixKey={pixInfo?.key}
+                />
+
+                <div className="border-border bg-secondary/40 grid gap-1.5 rounded-lg border border-dashed p-3.5">
+                  <label className="text-sm font-medium">
+                    Anexar comprovante do PIX {sellerName ? "(opcional para vendedor)" : "(obrigatório)"}
+                  </label>
+                  <p className="text-muted-foreground text-xs">
+                    Após realizar o pagamento do valor exato, anexe o comprovante (foto ou PDF) abaixo para validação.
+                  </p>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
+                    className="text-muted-foreground file:bg-card file:text-foreground file:border-border mt-1 text-xs file:mr-3 file:rounded-md file:border file:px-2.5 file:py-1.5 file:text-xs file:font-medium"
+                  />
+                  {uploading ? (
+                    <p className="text-pending text-xs font-medium">Enviando comprovante…</p>
+                  ) : null}
+                  {attachmentId ? (
+                    <p className="text-confirmed flex items-center gap-1 text-xs font-medium">
+                      <span aria-hidden>✓</span> Comprovante anexado
+                    </p>
+                  ) : null}
+                </div>
+
+                <Button type="submit" size="lg" disabled={submitting || uploading}>
+                  {submitting
+                    ? "Processando…"
+                    : sellerName
+                      ? "Confirmar Venda (Vendedor)"
+                      : "Confirmar Compra"}
+                </Button>
+              </>
+            )}
+          </form>
+        </Form>
+      )}
     </div>
   );
 }

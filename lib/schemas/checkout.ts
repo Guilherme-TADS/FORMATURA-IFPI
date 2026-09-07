@@ -9,6 +9,7 @@ export const buyerFormSchema = z.object({
     .regex(/^[\d()\s-]+$/, "Use apenas números, espaços, parênteses e hífen."),
   whatsapp: z.string().trim().optional(),
   instagram: z.string().trim().optional(),
+  email: z.string().trim().email("Informe um e-mail válido.").optional().or(z.literal("")),
   notes: z.string().trim().optional(),
   paymentMethodId: z.string().uuid("Selecione uma forma de pagamento."),
 });

@@ -6,7 +6,7 @@ import { getCurrentProfile } from "@/lib/auth/session";
 import { LinkButton } from "@/components/ui/link-button";
 import { PurchaseFlow } from "./purchase-flow";
 import { centsToBRL } from "@/lib/money";
-import { getReservationTtlMinutes, getPixInfo } from "@/lib/settings";
+import { getReservationTtlMinutes, getPixInfo, getMercadoPagoConfig } from "@/lib/settings";
 import { getPublicRaffleBySlug, getPublicPaymentMethods } from "@/lib/public-raffles";
 
 export async function generateMetadata({
@@ -56,12 +56,13 @@ async function RaffleContent({
 }) {
   const { slug } = await params;
 
-  const [raffle, paymentMethods, reservationTtlMinutes, pixInfo, profile] = await Promise.all([
+  const [raffle, paymentMethods, reservationTtlMinutes, pixInfo, profile, mercadoPagoConfig] = await Promise.all([
     getPublicRaffleBySlug(slug),
     getPublicPaymentMethods(),
     getReservationTtlMinutes(),
     getPixInfo(),
     getCurrentProfile(),
+    getMercadoPagoConfig(),
   ]);
 
   if (!raffle) notFound();
@@ -144,6 +145,7 @@ async function RaffleContent({
           reservationTtlMinutes={reservationTtlMinutes}
           pixInfo={pixInfo}
           sellerName={profile?.full_name ?? null}
+          mercadoPagoEnabled={mercadoPagoConfig.enabled && Boolean(mercadoPagoConfig.accessToken)}
         />
       )}
 

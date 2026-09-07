@@ -12,6 +12,7 @@ export const SETTINGS_KEYS = {
   uploadLimits: "upload_limits",
   reservationTtlMinutes: "reservation_ttl_minutes",
   pixInfo: "pix_info",
+  mercadoPagoConfig: "mercadopago_config",
 } as const;
 
 export type EventInfo = {
@@ -26,10 +27,22 @@ export type PixInfo = {
   merchantCity: string;
 };
 
+export type MercadoPagoConfig = {
+  enabled: boolean;
+  accessToken: string;
+  publicKey?: string;
+};
+
 export const DEFAULT_PIX_INFO: PixInfo = {
   key: process.env.NEXT_PUBLIC_PIX_KEY || "",
   merchantName: "Comissao Formatura",
   merchantCity: "Teresina",
+};
+
+export const DEFAULT_MERCADOPAGO_CONFIG: MercadoPagoConfig = {
+  enabled: false,
+  accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN || "",
+  publicKey: process.env.NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY || "",
 };
 
 export const DEFAULT_EVENT_INFO: EventInfo = {
@@ -81,12 +94,22 @@ export async function getPixInfo(): Promise<PixInfo> {
   return { ...DEFAULT_PIX_INFO, ...value };
 }
 
+export async function getMercadoPagoConfig(): Promise<MercadoPagoConfig> {
+  const value = await getSetting<Partial<MercadoPagoConfig>>(SETTINGS_KEYS.mercadoPagoConfig);
+  const config = { ...DEFAULT_MERCADOPAGO_CONFIG, ...value };
+  if (!config.accessToken && process.env.MERCADO_PAGO_ACCESS_TOKEN) {
+    config.accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN;
+  }
+  return config;
+}
+
 export async function getAllSettings() {
-  const [eventInfo, uploadLimits, reservationTtlMinutes, pixInfo] = await Promise.all([
+  const [eventInfo, uploadLimits, reservationTtlMinutes, pixInfo, mercadoPagoConfig] = await Promise.all([
     getEventInfo(),
     getUploadLimits(),
     getReservationTtlMinutes(),
     getPixInfo(),
+    getMercadoPagoConfig(),
   ]);
-  return { eventInfo, uploadLimits, reservationTtlMinutes, pixInfo };
+  return { eventInfo, uploadLimits, reservationTtlMinutes, pixInfo, mercadoPagoConfig };
 }

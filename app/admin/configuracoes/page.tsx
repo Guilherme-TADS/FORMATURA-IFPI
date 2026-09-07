@@ -16,7 +16,8 @@ export default async function SettingsPage() {
     redirect("/admin/dashboard");
   }
 
-  const { eventInfo, uploadLimits, reservationTtlMinutes, pixInfo } = await getAllSettings();
+  const { eventInfo, uploadLimits, reservationTtlMinutes, pixInfo, mercadoPagoConfig } =
+    await getAllSettings();
 
   return (
     <div>
@@ -34,6 +35,9 @@ export default async function SettingsPage() {
         pixKey={pixInfo.key}
         pixMerchantName={pixInfo.merchantName}
         pixMerchantCity={pixInfo.merchantCity}
+        mercadoPagoEnabled={mercadoPagoConfig.enabled}
+        mercadoPagoAccessToken={mercadoPagoConfig.accessToken}
+        mercadoPagoPublicKey={mercadoPagoConfig.publicKey}
       />
     </div>
   );
