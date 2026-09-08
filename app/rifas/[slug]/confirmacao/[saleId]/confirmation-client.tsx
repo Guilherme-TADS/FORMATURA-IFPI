@@ -38,17 +38,22 @@ export function ConfirmationClient({
   );
 
   useEffect(() => {
+    let isMounted = true;
     const raw = sessionStorage.getItem(`receipt:${saleId}`);
     if (raw) {
       try {
-        setReceipt(JSON.parse(raw));
-        return;
+        const parsed = JSON.parse(raw);
+        if (parsed) {
+          queueMicrotask(() => {
+            if (isMounted) setReceipt(parsed);
+          });
+          return;
+        }
       } catch {
         // Falha no parse, tenta buscar no servidor
       }
     }
 
-    let isMounted = true;
     fetchSaleReceipt(saleId, slug).then((serverReceipt) => {
       if (!isMounted) return;
       if (serverReceipt) {

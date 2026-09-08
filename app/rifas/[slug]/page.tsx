@@ -240,7 +240,8 @@ async function Availability({
   const { data: points } = await supabase
     .from("public_raffle_points")
     .select("status")
-    .eq("raffle_id", raffleId);
+    .eq("raffle_id", raffleId)
+    .limit(total > 0 ? total : 100000);
 
   const counts = { AVAILABLE: 0, RESERVED: 0, SOLD: 0, CANCELLED: 0 } as Record<
     string,

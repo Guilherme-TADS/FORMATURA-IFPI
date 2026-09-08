@@ -15,7 +15,7 @@ export async function fetchSaleReceipt(
     const { data: sale, error } = await admin
       .from("raffle_sales")
       .select(
-        "id, amount_cents, status, created_at, buyers(full_name), payment_methods(name), raffles!inner(title, slug), raffle_sale_points(raffle_points(point_number))",
+        "id, amount_cents, status, created_at, seller_id, buyers(full_name), payment_methods(name), raffles!inner(title, slug), raffle_sale_points(raffle_points(point_number))",
       )
       .eq("id", saleId)
       .eq("raffles.slug", slug)
@@ -42,6 +42,24 @@ export async function fetchSaleReceipt(
     }
     pointNumbers.sort((a, b) => a - b);
 
+    // Determina status efetivo (vendas autoatendimento sem aprovação manual ficam PENDING)
+    let effectiveStatus: SaleReceipt["status"] = "CONFIRMED";
+    if ((sale.status as string) === "CANCELLED") {
+      effectiveStatus = "CANCELLED";
+    } else if (!sale.seller_id) {
+      const { data: approvedLog } = await admin
+        .from("audit_logs")
+        .select("id")
+        .eq("entity_type", "raffle_sale")
+        .eq("entity_id", sale.id)
+        .eq("action", "SALE_APPROVED")
+        .maybeSingle();
+
+      if (!approvedLog) {
+        effectiveStatus = "PENDING";
+      }
+    }
+
     return {
       saleId: sale.id,
       raffleTitle,
@@ -49,7 +67,7 @@ export async function fetchSaleReceipt(
       pointNumbers,
       amountCents: sale.amount_cents,
       paymentMethod,
-      status: (sale.status as SaleReceipt["status"]) ?? "PENDING",
+      status: effectiveStatus,
       createdAt: sale.created_at,
     };
   } catch {

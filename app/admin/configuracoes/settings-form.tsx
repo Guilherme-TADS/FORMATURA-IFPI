@@ -182,7 +182,7 @@ export function SettingsForm({
       <div className="receipt-divider grid gap-3 pt-6">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="label-tag">⚡ PIX Automático (Mercado Pago)</h2>
+            <h2 className="label-tag">PIX Automático (Mercado Pago)</h2>
             <p className="text-muted-foreground text-xs mt-0.5">
               Gera QR Code dinâmico com aprovação em segundos sem envio de comprovante. A Chave PIX manual continuará disponível como opção alternativa.
             </p>
@@ -229,7 +229,7 @@ export function SettingsForm({
             </div>
 
             <div className="border-border bg-secondary/50 rounded-lg border p-3 text-xs">
-              <p className="font-semibold mb-1">🔗 URL de Webhook para cadastrar no Mercado Pago:</p>
+              <p className="font-semibold mb-1">URL de Webhook para cadastrar no Mercado Pago:</p>
               <code className="bg-background border-border block rounded border px-2 py-1 text-[11px] font-mono select-all">
                 {typeof window !== "undefined" ? `${window.location.origin}/api/webhooks/mercadopago` : "/api/webhooks/mercadopago"}
               </code>

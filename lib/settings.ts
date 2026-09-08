@@ -34,13 +34,13 @@ export type MercadoPagoConfig = {
   publicKey?: string;
 };
 
-export const DEFAULT_PIX_INFO: PixInfo = {
+const DEFAULT_PIX_INFO: PixInfo = {
   key: process.env.NEXT_PUBLIC_PIX_KEY || "",
   merchantName: "Comissao Formatura",
   merchantCity: "Teresina",
 };
 
-export const DEFAULT_MERCADOPAGO_CONFIG: MercadoPagoConfig = {
+const DEFAULT_MERCADOPAGO_CONFIG: MercadoPagoConfig = {
   enabled: false,
   accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN || "",
   publicKey: process.env.NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY || "",

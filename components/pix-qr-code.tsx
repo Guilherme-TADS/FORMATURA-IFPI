@@ -20,10 +20,7 @@ export function PixQrCode({
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (!code) {
-      setQrDataUrl(null);
-      return;
-    }
+    if (!code) return;
 
     let isMounted = true;
     QRCode.toDataURL(code, {
@@ -46,6 +43,8 @@ export function PixQrCode({
       isMounted = false;
     };
   }, [code]);
+
+  const displayQr = code ? qrDataUrl : null;
 
   const textToCopy = code || pixKey || "";
 
@@ -77,10 +76,10 @@ export function PixQrCode({
       {/* Box do QR Code Visual */}
       <div className="flex flex-col items-center justify-center py-2 text-center">
         <div className="bg-white p-2.5 rounded-xl shadow-sm ring-1 ring-black/10 flex items-center justify-center w-[200px] h-[200px]">
-          {qrDataUrl ? (
+          {displayQr ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={qrDataUrl}
+              src={displayQr ?? undefined}
               alt="QR Code Pix"
               width={180}
               height={180}

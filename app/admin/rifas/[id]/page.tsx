@@ -32,7 +32,7 @@ export default async function RaffleDetailPage({
   const [{ data: raffle }, profile, { data: points }, { data: sales }, { count: totalSalesCount }, winner] = await Promise.all([
     supabase.from("raffles").select("*").eq("id", id).single(),
     getCurrentProfile(),
-    supabase.from("raffle_points").select("status").eq("raffle_id", id),
+    supabase.from("raffle_points").select("status").eq("raffle_id", id).limit(100000),
     supabase
       .from("raffle_sales")
       .select("amount_cents")

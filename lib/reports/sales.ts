@@ -74,9 +74,12 @@ export async function querySalesReport(
   if (filters.startDate) query = query.gte("created_at", `${filters.startDate}T00:00:00`);
   if (filters.endDate) query = query.lte("created_at", `${filters.endDate}T23:59:59`);
   if (filters.buyerQuery) {
-    query = query.or(`full_name.ilike.%${filters.buyerQuery}%,phone.ilike.%${filters.buyerQuery}%`, {
-      foreignTable: "buyers",
-    });
+    const cleanBuyer = filters.buyerQuery.replace(/[(),]/g, "").trim();
+    if (cleanBuyer) {
+      query = query.or(`full_name.ilike.%${cleanBuyer}%,phone.ilike.%${cleanBuyer}%`, {
+        foreignTable: "buyers",
+      });
+    }
   }
   if (filters.pointNumber) {
     const { data: matches } = await supabase

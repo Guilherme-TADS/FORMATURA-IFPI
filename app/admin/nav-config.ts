@@ -24,7 +24,7 @@ export type NavItem = {
 
 // Routes are added here as each admin section ships — no dead links to
 // pages that don't exist yet.
-export const navItems: NavItem[] = [
+const navItems: NavItem[] = [
   {
     href: "/admin/dashboard",
     label: "Painel",

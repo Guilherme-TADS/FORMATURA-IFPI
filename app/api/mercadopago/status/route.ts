@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getMercadoPagoConfig } from "@/lib/settings";
 import { getMercadoPagoPayment } from "@/lib/mercadopago";
@@ -66,27 +67,89 @@ export async function GET(req: Request) {
                 },
               });
 
-              await admin.from("payment_records").insert({
-                sale_id: saleId,
-                payment_method_id: sale.payment_method_id,
-                amount_cents: payment.amountCents || sale.amount_cents,
-                reference_note: `Mercado Pago Pix ID: ${payment.id}`,
-              });
+              // Atualiza o registro em payment_records (ou cria se inexistente) para evitar duplicidade
+              const { data: existingPayment } = await admin
+                .from("payment_records")
+                .select("id")
+                .eq("sale_id", saleId)
+                .maybeSingle();
+
+              if (existingPayment) {
+                await admin
+                  .from("payment_records")
+                  .update({
+                    amount_cents: payment.amountCents || sale.amount_cents,
+                    reference_note: `Mercado Pago Pix ID: ${payment.id}`,
+                  })
+                  .eq("id", existingPayment.id);
+              } else {
+                await admin.from("payment_records").insert({
+                  sale_id: saleId,
+                  payment_method_id: sale.payment_method_id,
+                  amount_cents: payment.amountCents || sale.amount_cents,
+                  reference_note: `Mercado Pago Pix ID: ${payment.id}`,
+                });
+              }
 
               await admin
                 .from("raffle_sales")
                 .update({ status: "CONFIRMED" })
                 .eq("id", saleId);
+
+              try { revalidateTag("raffles", "max"); } catch {}
             }
 
             return NextResponse.json({ status: "CONFIRMED" });
           }
 
           if (payment.status === "cancelled" || payment.status === "rejected") {
-            await admin.rpc("rpc_cancel_sale", {
-              p_sale_id: saleId,
-              p_reason: `PIX Mercado Pago ${payment.status === "cancelled" ? "expirado/cancelado" : "rejeitado"}`,
+            const reason = `PIX Mercado Pago ${payment.status === "cancelled" ? "expirado/cancelado" : "rejeitado"}`;
+
+            // 1. Atualiza venda para CANCELLED
+            await admin
+              .from("raffle_sales")
+              .update({
+                status: "CANCELLED",
+                cancelled_reason: reason,
+                cancelled_at: new Date().toISOString(),
+              })
+              .eq("id", saleId);
+
+            // 2. Retorna números para AVAILABLE
+            const { data: salePoints } = await admin
+              .from("raffle_sale_points")
+              .select("point_id")
+              .eq("sale_id", saleId);
+
+            if (salePoints && salePoints.length > 0) {
+              const pointIds = salePoints.map((sp) => sp.point_id);
+              await admin
+                .from("raffle_points")
+                .update({
+                  status: "AVAILABLE",
+                  reserved_until: null,
+                  reservation_token: null,
+                })
+                .in("id", pointIds);
+            }
+
+            // 3. Registra auditoria
+            await admin.from("audit_logs").insert({
+              entity_type: "raffle_sale",
+              entity_id: saleId,
+              action: "SALE_CANCELLED",
+              user_id: null,
+              new_data: {
+                reason,
+                gateway: "mercadopago",
+                mp_payment_id: payment.id,
+                auto_cancelled: true,
+                source: "status_polling",
+              },
             });
+
+            try { revalidateTag("raffles", "max"); } catch {}
+
             return NextResponse.json({ status: "CANCELLED" });
           }
         } catch {

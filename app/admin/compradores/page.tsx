@@ -78,10 +78,13 @@ export default async function BuyersPage({
       "id",
       buyerIds.length ? buyerIds : ["00000000-0000-0000-0000-000000000000"],
     );
-  } else if (q) {
-    query = query.or(
-      `full_name.ilike.%${q}%,phone.ilike.%${q}%,whatsapp.ilike.%${q}%`,
-    );
+  } else if (q && q.trim()) {
+    const cleanQ = q.replace(/[(),]/g, "").trim();
+    if (cleanQ) {
+      query = query.or(
+        `full_name.ilike.%${cleanQ}%,phone.ilike.%${cleanQ}%,whatsapp.ilike.%${cleanQ}%`,
+      );
+    }
   }
 
   const { data: buyers } = await query;

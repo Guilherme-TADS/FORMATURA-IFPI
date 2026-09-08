@@ -45,8 +45,8 @@ export async function updateMyPassword(
   currentPassword: string,
   newPassword: string,
 ): Promise<ProfileActionState> {
-  if (newPassword.length < 6) {
-    return { error: "A nova senha deve ter pelo menos 6 caracteres." };
+  if (newPassword.length < 8) {
+    return { error: "A nova senha deve ter pelo menos 8 caracteres." };
   }
 
   const supabase = await createClient();

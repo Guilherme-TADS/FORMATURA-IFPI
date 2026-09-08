@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -51,7 +51,7 @@ export function TransactionForm({
 
   const [file, setFile] = useState<File | null>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [fileKey, setFileKey] = useState(0);
 
   async function onSubmit(values: TransactionFormValues) {
     setServerError(null);
@@ -94,7 +94,7 @@ export function TransactionForm({
     }
 
     setFile(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    setFileKey((k) => k + 1);
     form.reset({
       description: "",
       categoryId: "",
@@ -272,7 +272,7 @@ export function TransactionForm({
           </label>
           <input
             id="transaction-file"
-            ref={fileInputRef}
+            key={fileKey}
             type="file"
             accept="image/jpeg,image/png,image/webp,application/pdf"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}

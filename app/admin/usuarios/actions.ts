@@ -181,8 +181,8 @@ export async function deleteUser(targetUserId: string): Promise<UserActionState>
       return { error: "Não foi possível excluir o usuário: " + authError.message };
     }
 
-    // 6. Registra no log de auditoria
-    await supabase.from("audit_logs").insert({
+    // 6. Registra no log de auditoria via admin client
+    await admin.from("audit_logs").insert({
       action: "USER_DELETED",
       entity_type: "user",
       entity_id: targetUserId,
@@ -229,7 +229,8 @@ export async function updateUserProfile(
 
     if (error) return { error: "Não foi possível atualizar os dados do usuário." };
 
-    await supabase.from("audit_logs").insert({
+    const admin = createAdminClient();
+    await admin.from("audit_logs").insert({
       action: "USER_PROFILE_UPDATED",
       entity_type: "user",
       entity_id: targetUserId,

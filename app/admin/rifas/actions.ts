@@ -3,6 +3,7 @@
 import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { brlStringToCents } from "@/lib/money";
 import { raffleFormSchema, type RaffleFormValues } from "@/lib/schemas/raffle";
 import { SETTINGS_KEYS, type RaffleWinner } from "@/lib/settings";
@@ -171,8 +172,10 @@ export async function deleteRaffle(raffleId: string) {
     .eq("id", raffleId)
     .single();
 
-  // Deleta os números gerados para a rifa
-  const { error: pointsError } = await supabase
+  // Deleta os números gerados para a rifa e a rifa via admin client
+  const admin = createAdminClient();
+
+  const { error: pointsError } = await admin
     .from("raffle_points")
     .delete()
     .eq("raffle_id", raffleId);
@@ -180,14 +183,14 @@ export async function deleteRaffle(raffleId: string) {
   if (pointsError) throw new Error("Não foi possível remover os números da rifa.");
 
   // Deleta a rifa
-  const { error: deleteError } = await supabase
+  const { error: deleteError } = await admin
     .from("raffles")
     .delete()
     .eq("id", raffleId);
 
   if (deleteError) throw new Error("Não foi possível excluir a rifa.");
 
-  await supabase.from("audit_logs").insert({
+  await admin.from("audit_logs").insert({
     action: "RAFFLE_DELETED",
     entity_type: "raffle",
     entity_id: raffleId,
@@ -314,8 +317,9 @@ export async function drawRaffleWinner(
       return { error: "Erro ao registrar o ganhador no sistema." };
     }
 
-    // Registra no log de auditoria
-    await supabase.from("audit_logs").insert({
+    // Registra no log de auditoria via admin client
+    const admin = createAdminClient();
+    await admin.from("audit_logs").insert({
       action: "RAFFLE_WINNER_DRAWN",
       entity_type: "raffle",
       entity_id: raffleId,
@@ -365,7 +369,8 @@ export async function clearRaffleWinner(raffleId: string): Promise<RaffleActionS
       { onConflict: "key" },
     );
 
-    await supabase.from("audit_logs").insert({
+    const admin = createAdminClient();
+    await admin.from("audit_logs").insert({
       action: "RAFFLE_WINNER_CLEARED",
       entity_type: "raffle",
       entity_id: raffleId,

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { DocumentEntityType } from "@/lib/uploads";
 
 async function requireAdmin() {
@@ -24,28 +25,29 @@ async function requireAdmin() {
 export async function getDownloadUrl(
   attachmentId: string,
 ): Promise<{ url?: string; error?: string }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "Não autenticado." };
+  try {
+    const { supabase } = await requireAdmin();
 
-  const { data: attachment } = await supabase
-    .from("attachments")
-    .select("temp_storage_path, drive_url")
-    .eq("id", attachmentId)
-    .single();
+    const { data: attachment } = await supabase
+      .from("attachments")
+      .select("temp_storage_path, drive_url")
+      .eq("id", attachmentId)
+      .single();
 
-  if (!attachment) return { error: "Documento não encontrado." };
-  if (attachment.drive_url) return { url: attachment.drive_url };
-  if (!attachment.temp_storage_path) return { error: "Arquivo indisponível." };
+    if (!attachment) return { error: "Documento não encontrado." };
+    if (attachment.drive_url) return { url: attachment.drive_url };
+    if (!attachment.temp_storage_path) return { error: "Arquivo indisponível." };
 
-  const { data, error } = await supabase.storage
-    .from("attachments")
-    .createSignedUrl(attachment.temp_storage_path, 60);
+    const admin = createAdminClient();
+    const { data, error } = await admin.storage
+      .from("attachments")
+      .createSignedUrl(attachment.temp_storage_path, 60);
 
-  if (error || !data) return { error: "Não foi possível gerar o link de download." };
-  return { url: data.signedUrl };
+    if (error || !data) return { error: "Não foi possível gerar o link de download." };
+    return { url: data.signedUrl };
+  } catch {
+    return { error: "Não autorizado ou erro ao acessar documento." };
+  }
 }
 
 export async function linkAttachment(
@@ -95,8 +97,9 @@ export async function deleteAttachment(attachmentId: string, reason: string) {
     await supabase.storage.from("attachments").remove([attachment.temp_storage_path]);
   }
 
-  // Registra a auditoria
-  await supabase.from("audit_logs").insert({
+  // Registra a auditoria via admin client
+  const admin = createAdminClient();
+  await admin.from("audit_logs").insert({
     action: "ATTACHMENT_DELETED",
     entity_type: "attachment",
     entity_id: attachmentId,

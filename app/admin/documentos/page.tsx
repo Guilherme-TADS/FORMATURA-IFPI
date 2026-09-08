@@ -55,7 +55,12 @@ export default async function DocumentsPage({
   if (status && ATTACHMENT_STATUSES.includes(status as AttachmentStatus)) {
     query = query.eq("status", status as AttachmentStatus);
   }
-  if (q) query = query.or(`file_name.ilike.%${q}%,description.ilike.%${q}%`);
+  if (q) {
+    const cleanQ = q.replace(/[(),]/g, "").trim();
+    if (cleanQ) {
+      query = query.or(`file_name.ilike.%${cleanQ}%,description.ilike.%${cleanQ}%`);
+    }
+  }
 
   const [{ data: attachments }, { data: raffleOptions }, { data: transactionOptions }] =
     await Promise.all([

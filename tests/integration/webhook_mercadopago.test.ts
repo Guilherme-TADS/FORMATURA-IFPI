@@ -167,5 +167,13 @@ describe("Mercado Pago Webhook & Auto Approval Integration", () => {
     const statusRes = await statusHandler(statusReq);
     const statusData = await statusRes.json();
     expect(statusData.status).toBe("CONFIRMED");
+
+    // 7. Garante que NÃO há duplicidade em payment_records
+    const { data: payments } = await admin
+      .from("payment_records")
+      .select("id, amount_cents, reference_note")
+      .eq("sale_id", saleId);
+    expect(payments).toHaveLength(1);
+    expect(payments![0].reference_note).toContain("Mercado Pago Pix ID: 12345678");
   });
 });

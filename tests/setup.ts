@@ -15,5 +15,8 @@ vi.mock("next/cache", async () => {
     ...actual,
     cacheLife: () => {},
     cacheTag: () => {},
+    revalidateTag: () => {},
+    revalidatePath: () => {},
+    updateTag: () => {},
   };
 });

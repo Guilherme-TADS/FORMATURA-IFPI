@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const buyerUpdateSchema = z.object({
   fullName: z.string().trim().min(2, "Nome deve ter pelo menos 2 caracteres."),
@@ -89,7 +90,8 @@ export async function deleteBuyer(id: string) {
     .eq("id", id)
     .single();
 
-  const { error: deleteError } = await supabase
+  const admin = createAdminClient();
+  const { error: deleteError } = await admin
     .from("buyers")
     .delete()
     .eq("id", id);
@@ -98,7 +100,7 @@ export async function deleteBuyer(id: string) {
     throw new Error("Não foi possível excluir o comprador.");
   }
 
-  await supabase.from("audit_logs").insert({
+  await admin.from("audit_logs").insert({
     action: "BUYER_DELETED",
     entity_type: "buyer",
     entity_id: id,

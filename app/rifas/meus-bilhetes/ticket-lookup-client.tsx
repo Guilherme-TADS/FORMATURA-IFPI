@@ -6,17 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { centsToBRL } from "@/lib/money";
+import { formatPhone } from "@/lib/phone";
 import { searchBuyerTickets, type BuyerTicketSale } from "./actions";
-
-function formatPhone(value: string) {
-  const digits = value.replace(/\D/g, "");
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
-  if (digits.length <= 10) {
-    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
-  }
-  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
-}
 
 export function TicketLookupClient() {
   const [phone, setPhone] = useState("");
@@ -56,7 +47,7 @@ export function TicketLookupClient() {
           Telefone com DDD
         </label>
         <p className="text-muted-foreground mt-1 text-xs">
-          Digite o mesmo número de telefone ou WhatsApp informado durante a compra.
+          Digite o mesmo número de telefone ou WhatsApp informado durante a compra (com DDD).
         </p>
 
         <div className="mt-3 flex flex-wrap gap-2 sm:flex-nowrap">
@@ -72,7 +63,7 @@ export function TicketLookupClient() {
           />
           <Button
             type="submit"
-            disabled={pending || phone.replace(/\D/g, "").length < 8}
+            disabled={pending || phone.replace(/\D/g, "").length < 10}
             className="w-full sm:w-auto shrink-0"
           >
             {pending ? "Consultando..." : "Consultar Bilhetes"}

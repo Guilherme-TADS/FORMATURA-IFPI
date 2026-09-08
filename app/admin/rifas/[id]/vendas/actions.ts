@@ -2,6 +2,7 @@
 
 import { revalidatePath, updateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 async function requireAdmin() {
   const supabase = await createClient();
@@ -23,6 +24,26 @@ async function requireAdmin() {
   return { supabase, userId: user.id };
 }
 
+async function requireStaff() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Não autenticado.");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, active")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile?.active) {
+    throw new Error("Usuário inativo ou não autorizado.");
+  }
+
+  return { supabase, profile, userId: user.id };
+}
+
 export async function approveSale(raffleId: string, saleId: string) {
   try {
     const { supabase, userId } = await requireAdmin();
@@ -34,10 +55,17 @@ export async function approveSale(raffleId: string, saleId: string) {
       .single();
 
     if (fetchError || !sale) return { error: "Venda não encontrada." };
-    if (sale.status === "CANCELLED") return { error: "Uma venda cancelada não pode ser aprovada." };
+    if ((sale.status as string) === "CANCELLED") return { error: "Uma venda cancelada não pode ser aprovada." };
 
-    // Registra a aprovação na auditoria oficial
-    const { error: auditError } = await supabase.from("audit_logs").insert({
+    const admin = createAdminClient();
+
+    // Se o banco tiver suporte a PENDING, atualiza para CONFIRMED
+    if ((sale.status as string) === "PENDING") {
+      await admin.from("raffle_sales").update({ status: "CONFIRMED" }).eq("id", saleId);
+    }
+
+    // Registra a aprovação na auditoria oficial via admin client
+    const { error: auditError } = await admin.from("audit_logs").insert({
       action: "SALE_APPROVED",
       entity_type: "raffle_sale",
       entity_id: saleId,
@@ -72,8 +100,17 @@ export async function approveMultipleSales(raffleId: string, saleIds: string[]) 
 
     if (fetchError || !sales) return { error: "Erro ao buscar vendas." };
 
-    const validSaleIds = sales.filter((s) => s.status !== "CANCELLED").map((s) => s.id);
+    const validSaleIds = sales.filter((s) => (s.status as string) !== "CANCELLED").map((s) => s.id);
     if (!validSaleIds.length) return { error: "Nenhuma das vendas selecionadas pode ser aprovada." };
+
+    const admin = createAdminClient();
+
+    // Atualiza vendas PENDING para CONFIRMED se aplicável
+    await admin
+      .from("raffle_sales")
+      .update({ status: "CONFIRMED" })
+      .in("id", validSaleIds)
+      .filter("status", "eq", "PENDING");
 
     const auditRows = validSaleIds.map((id) => ({
       action: "SALE_APPROVED",
@@ -83,7 +120,7 @@ export async function approveMultipleSales(raffleId: string, saleIds: string[]) 
       new_data: { approved_at: new Date().toISOString(), bulk: true },
     }));
 
-    const { error: auditError } = await supabase.from("audit_logs").insert(auditRows);
+    const { error: auditError } = await admin.from("audit_logs").insert(auditRows);
     if (auditError) {
       return { error: "Não foi possível registrar a aprovação em lote." };
     }
@@ -128,11 +165,7 @@ export async function cancelSale(raffleId: string, saleId: string, reason: strin
 
 export async function getAttachmentViewUrl(attachmentId: string): Promise<{ url?: string; error?: string }> {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return { error: "Não autenticado." };
+    const { supabase } = await requireStaff();
 
     const { data: attachment } = await supabase
       .from("attachments")
@@ -144,13 +177,14 @@ export async function getAttachmentViewUrl(attachmentId: string): Promise<{ url?
     if (attachment.drive_url) return { url: attachment.drive_url };
     if (!attachment.temp_storage_path) return { error: "Arquivo indisponível." };
 
-    const { data, error } = await supabase.storage
+    const admin = createAdminClient();
+    const { data, error } = await admin.storage
       .from("attachments")
       .createSignedUrl(attachment.temp_storage_path, 300); // 5 minutos de validade
 
     if (error || !data) return { error: "Não foi possível gerar link do comprovante." };
     return { url: data.signedUrl };
-  } catch {
-    return { error: "Erro ao carregar comprovante." };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Erro ao carregar comprovante." };
   }
 }

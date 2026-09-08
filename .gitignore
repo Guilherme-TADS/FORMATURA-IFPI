@@ -47,3 +47,4 @@ next-env.d.ts
 *formatura-ifpi*.json
 *credentials*.json
 *service_account*.json
+/.temp/

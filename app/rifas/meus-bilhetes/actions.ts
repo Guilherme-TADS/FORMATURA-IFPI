@@ -1,6 +1,12 @@
 "use server";
 
+import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  normalizePhoneDigits,
+  getPhoneSearchPattern,
+  isPhoneMatch,
+} from "@/lib/phone";
 
 export type BuyerTicketSale = {
   saleId: string;
@@ -24,35 +30,72 @@ export type LookupResult = {
 export async function searchBuyerTickets(
   phoneInput: string,
 ): Promise<LookupResult> {
-  const digits = phoneInput.replace(/\D/g, "");
+  const digits = normalizePhoneDigits(phoneInput);
 
-  if (digits.length < 8) {
+  if (!digits) {
     return {
       found: false,
-      message: "Por favor, digite um telefone válido com DDD (mínimo de 8 dígitos).",
+      message:
+        "Por favor, digite um telefone válido com DDD (mínimo de 10 dígitos, ex: (86) 99999-9999).",
     };
   }
 
   try {
     const admin = createAdminClient();
-    const last8 = digits.slice(-8);
 
-    // Busca compradores que coincidam com o final do telefone
-    const { data: allBuyers, error: buyersErr } = await admin
+    // 1. Rate limiting por IP do cliente para evitar enumeração de telefones
+    try {
+      const headerList = await headers();
+      const ip =
+        headerList.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+        headerList.get("x-real-ip")?.trim() ??
+        "unknown";
+
+      const { error: rateLimitError } = await admin.rpc("check_rate_limit", {
+        p_bucket: "ticket_lookup",
+        p_identifier: ip,
+        p_max_events: 15,
+        p_window_seconds: 60,
+      });
+
+      if (rateLimitError) {
+        if (
+          rateLimitError.code === "P0001" ||
+          rateLimitError.message?.toLowerCase().includes("muitas tentativas")
+        ) {
+          return {
+            found: false,
+            message:
+              "Muitas consultas realizadas em pouco tempo. Por favor, aguarde um minuto e tente novamente.",
+          };
+        }
+      }
+    } catch {
+      // Falha graciosa se headers() ou rate limiting não estiverem disponíveis
+    }
+
+    // 2. Busca direcionada no Postgres usando padrão com DDD e sufixo
+    const pattern = getPhoneSearchPattern(digits);
+
+    const { data: candidateBuyers, error: buyersErr } = await admin
       .from("buyers")
-      .select("id, full_name, phone");
+      .select("id, full_name, phone, whatsapp")
+      .or(
+        `phone.ilike.%${pattern.ddd}%${pattern.part1}%${pattern.part2}%,whatsapp.ilike.%${pattern.ddd}%${pattern.part1}%${pattern.part2}%`
+      )
+      .limit(30);
 
-    if (buyersErr || !allBuyers) {
+    if (buyersErr) {
       return {
         found: false,
         message: "Erro ao consultar o banco de dados. Tente novamente.",
       };
     }
 
-    const matchedBuyers = allBuyers.filter((b) => {
-      const clean = (b.phone ?? "").replace(/\D/g, "");
-      return clean.endsWith(last8) || clean.includes(last8);
-    });
+    // 3. Validação estrita para impedir vazamento cruzado entre DDDs
+    const matchedBuyers = (candidateBuyers ?? []).filter(
+      (b) => isPhoneMatch(b.phone, digits) || isPhoneMatch(b.whatsapp, digits)
+    );
 
     if (matchedBuyers.length === 0) {
       return {

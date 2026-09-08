@@ -37,7 +37,11 @@ export default async function RafflesPage() {
 
   const [{ data: points }, { data: sales }] = await Promise.all([
     raffleIds.length
-      ? supabase.from("raffle_points").select("raffle_id, status").in("raffle_id", raffleIds)
+      ? supabase
+          .from("raffle_points")
+          .select("raffle_id, status")
+          .in("raffle_id", raffleIds)
+          .limit(100000)
       : Promise.resolve({ data: [] as { raffle_id: string; status: string }[] }),
     raffleIds.length
       ? supabase

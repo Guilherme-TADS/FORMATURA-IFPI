@@ -18,6 +18,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { centsToBRL } from "@/lib/money";
+import { formatPhone } from "@/lib/phone";
 import { buyerFormSchema, type SaleReceipt } from "@/lib/schemas/checkout";
 import { generatePixPayload } from "@/lib/pix";
 import type { PixInfo } from "@/lib/settings";
@@ -445,8 +446,6 @@ export function PurchaseFlow({
   const minutes = Math.floor(remainingSeconds / 60);
   const seconds = remainingSeconds % 60;
 
-  const paymentOptions = useMemo(() => paymentMethods, [paymentMethods]);
-
   if (!reservation) {
     return (
       <div className="mt-8 pb-24">
@@ -617,7 +616,7 @@ export function PurchaseFlow({
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  <span>⚡ PIX Automático</span>
+                  <span>PIX Automático</span>
                   <span className="text-[10px] font-normal opacity-85">Instantâneo · Sem comprovante</span>
                 </button>
                 <button
@@ -630,7 +629,7 @@ export function PurchaseFlow({
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  <span>📄 PIX Manual</span>
+                  <span>PIX Manual</span>
                   <span className="text-[10px] font-normal opacity-85">Chave da Turma · Envio de comprovante</span>
                 </button>
               </div>
@@ -656,7 +655,12 @@ export function PurchaseFlow({
                 <FormItem>
                   <FormLabel>Telefone</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="(11) 99999-9999" />
+                    <Input
+                      {...field}
+                      placeholder="(86) 99999-9999"
+                      maxLength={15}
+                      onChange={(e) => field.onChange(formatPhone(e.target.value))}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -683,7 +687,12 @@ export function PurchaseFlow({
                   <FormItem>
                     <FormLabel>WhatsApp (opcional)</FormLabel>
                     <FormControl>
-                      <Input {...field} />
+                      <Input
+                      {...field}
+                      placeholder="(86) 99999-9999"
+                      maxLength={15}
+                      onChange={(e) => field.onChange(formatPhone(e.target.value))}
+                    />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -739,7 +748,7 @@ export function PurchaseFlow({
               <>
                 <div className="border-border bg-secondary/30 rounded-lg border p-3.5 text-xs text-muted-foreground space-y-1">
                   <p className="font-semibold text-foreground flex items-center gap-1.5">
-                    <span>⚡ Como funciona o PIX Automático:</span>
+                    <span>Como funciona o PIX Automático:</span>
                   </p>
                   <p>
                     Ao clicar no botão abaixo, geraremos um QR Code dinâmico exclusivo do Banco Central. Assim que você pagar no app do seu banco, o sistema confirma seus números em poucos segundos de forma automática sem precisar enviar comprovante!

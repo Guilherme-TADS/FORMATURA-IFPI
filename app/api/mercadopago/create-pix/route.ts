@@ -31,14 +31,33 @@ export async function POST(req: Request) {
       );
     }
 
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
     const admin = createAdminClient();
 
-    // Busca o método de pagamento PIX
+    // 1. Rate limiting por IP
+    try {
+      const { error: rateLimitError } = await admin.rpc("check_rate_limit", {
+        p_bucket: "mercadopago_create_pix",
+        p_identifier: ip,
+        p_max_events: 10,
+        p_window_seconds: 60,
+      });
+      if (rateLimitError) {
+        return NextResponse.json(
+          { error: "Muitas tentativas em pouco tempo. Aguarde um instante e tente novamente." },
+          { status: 429 },
+        );
+      }
+    } catch {
+      // Ignora erro se rate limiting não estiver disponível no ambiente
+    }
+
+    // Busca o método de pagamento PIX (case-insensitive)
     const { data: pixMethod } = await admin
       .from("payment_methods")
       .select("id")
-      .eq("name", "PIX")
-      .single();
+      .ilike("name", "pix")
+      .maybeSingle();
 
     if (!pixMethod) {
       return NextResponse.json(
@@ -85,19 +104,57 @@ export async function POST(req: Request) {
     const appUrl = `${proto}://${host}`;
     const notificationUrl = `${appUrl}/api/webhooks/mercadopago`;
 
-    // Cria cobrança no Mercado Pago
-    const mpPayment = await createMercadoPagoPixPayment({
-      accessToken: mpConfig.accessToken,
-      amountCents: receiptObj.amountCents,
-      description: `Formatura IFPI - Rifa ${receiptObj.raffleTitle} (${receiptObj.pointNumbers.join(", ")})`,
-      payer: {
-        fullName: fullName.trim(),
-        phone: phone.trim(),
-        email: email?.trim(),
-      },
-      externalReference: receiptObj.saleId,
-      notificationUrl,
-    });
+    // Cria cobrança no Mercado Pago com rollback automático caso a API externa falhe
+    let mpPayment;
+    try {
+      mpPayment = await createMercadoPagoPixPayment({
+        accessToken: mpConfig.accessToken,
+        amountCents: receiptObj.amountCents,
+        description: `Formatura IFPI - Rifa ${receiptObj.raffleTitle} (${receiptObj.pointNumbers.join(", ")})`,
+        payer: {
+          fullName: fullName.trim(),
+          phone: phone.trim(),
+          email: email?.trim(),
+        },
+        externalReference: receiptObj.saleId,
+        notificationUrl,
+      });
+    } catch (mpErr) {
+      // Desfaz a venda e devolve os pontos caso o gateway rejeite a cobrança
+      try {
+        await admin
+          .from("raffle_sales")
+          .update({
+            status: "CANCELLED",
+            cancelled_reason: "Falha na criação do PIX no Mercado Pago",
+            cancelled_at: new Date().toISOString(),
+          })
+          .eq("id", receiptObj.saleId);
+
+        const { data: points } = await admin
+          .from("raffle_sale_points")
+          .select("point_id")
+          .eq("sale_id", receiptObj.saleId);
+
+        if (points && points.length > 0) {
+          await admin
+            .from("raffle_points")
+            .update({
+              status: "AVAILABLE",
+              reserved_until: null,
+              reservation_token: null,
+            })
+            .in(
+              "id",
+              points.map((p) => p.point_id),
+            );
+        }
+      } catch (rollbackErr) {
+        console.warn("Falha ao desfazer reserva após erro no Mercado Pago:", rollbackErr);
+      }
+
+      throw mpErr;
+    }
 
     // Registra o ID do Mercado Pago em audit_logs para rastreabilidade
     await admin.from("audit_logs").insert({
