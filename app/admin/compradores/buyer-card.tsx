@@ -232,7 +232,7 @@ export function BuyerCard({
                     {buyer.instagram}
                   </span>
                 ) : null}
-                <span className="opacity-75">
+                <span suppressHydrationWarning className="opacity-75">
                   Cadastrado em {new Date(buyer.createdAt).toLocaleDateString("pt-BR")}
                 </span>
               </div>
@@ -352,7 +352,7 @@ export function BuyerCard({
                             ? "Pendente"
                             : "Cancelada"}
                       </Badge>
-                      <span className="text-muted-foreground font-figures text-[11px]">
+                      <span suppressHydrationWarning className="text-muted-foreground font-figures text-[11px]">
                         {new Date(s.created_at).toLocaleDateString("pt-BR")}
                       </span>
                     </div>

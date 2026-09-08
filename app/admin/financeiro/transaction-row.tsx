@@ -179,7 +179,7 @@ export function TransactionRow({
         <td className="py-2.5 pr-4">{supplierName ?? "—"}</td>
       ) : null}
       <td className="font-figures py-2.5 pr-4">{centsToBRL(amountCents)}</td>
-      <td className="font-figures py-2.5 pr-4">
+      <td suppressHydrationWarning className="font-figures py-2.5 pr-4">
         {new Date(occurredOn + "T00:00:00").toLocaleDateString("pt-BR")}
       </td>
       <td className="py-2.5 pr-4">

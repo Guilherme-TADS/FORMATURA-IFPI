@@ -229,7 +229,7 @@ export function SalesTable({
                       </Badge>
                     )}
                   </td>
-                  <td className="font-figures py-3 pr-3 text-xs text-muted-foreground whitespace-nowrap">
+                  <td suppressHydrationWarning className="font-figures py-3 pr-3 text-xs text-muted-foreground whitespace-nowrap">
                     {new Date(sale.created_at).toLocaleString("pt-BR")}
                   </td>
                   {isAdmin ? (

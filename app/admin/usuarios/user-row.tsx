@@ -199,7 +199,7 @@ export function UserRow({
           {active ? "Ativo" : "Desativado"}
         </Badge>
       </td>
-      <td className="font-figures py-2.5 pr-4">
+      <td suppressHydrationWarning className="font-figures py-2.5 pr-4">
         {new Date(createdAt).toLocaleDateString("pt-BR")}
       </td>
       <td className="py-2.5 pr-4">

@@ -251,7 +251,7 @@ export function DocumentRow({
         </Badge>
       </td>
       <td className="py-2.5 pr-4">{uploadedByName ?? "—"}</td>
-      <td className="font-figures py-2.5 pr-4">{new Date(uploadedAt).toLocaleString("pt-BR")}</td>
+      <td suppressHydrationWarning className="font-figures py-2.5 pr-4">{new Date(uploadedAt).toLocaleString("pt-BR")}</td>
       <td className="py-2.5 pr-4">
         <div className="flex flex-wrap gap-1">
           <Button variant="outline" size="sm" disabled={downloading} onClick={handleDownload}>

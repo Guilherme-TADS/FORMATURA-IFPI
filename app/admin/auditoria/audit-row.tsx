@@ -39,7 +39,7 @@ export function AuditRow({
           ) : null}
         </td>
         <td className="py-2.5 pr-4">{userName ?? "Sistema / anônimo"}</td>
-        <td className="font-figures py-2.5 pr-4">
+        <td suppressHydrationWarning className="font-figures py-2.5 pr-4">
           {new Date(createdAt).toLocaleString("pt-BR")}
         </td>
         <td className="py-2.5 pr-4">
