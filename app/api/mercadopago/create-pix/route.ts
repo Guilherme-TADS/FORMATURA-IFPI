@@ -114,7 +114,7 @@ export async function POST(req: Request) {
         payer: {
           fullName: fullName.trim(),
           phone: phone.trim(),
-          email: email?.trim(),
+          email: email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ? email.trim() : undefined,
         },
         externalReference: receiptObj.saleId,
         notificationUrl,

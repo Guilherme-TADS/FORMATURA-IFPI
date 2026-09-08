@@ -40,6 +40,7 @@ type StoredReservation = {
 export function PurchaseFlow({
   raffleId,
   raffleSlug,
+  raffleTitle,
   unitPriceCents,
   paymentMethods,
   reservationTtlMinutes,
@@ -49,6 +50,7 @@ export function PurchaseFlow({
 }: {
   raffleId: string;
   raffleSlug: string;
+  raffleTitle: string;
   unitPriceCents: number;
   paymentMethods: PaymentMethod[];
   reservationTtlMinutes: number;
@@ -345,7 +347,7 @@ export function PurchaseFlow({
           toast.success("🎉 Pagamento aprovado com sucesso!");
           const receipt: SaleReceipt = {
             saleId: mpPayment!.saleId,
-            raffleTitle: "",
+            raffleTitle,
             buyerName: form.getValues("fullName"),
             pointNumbers: reservation?.pointNumbers ?? [],
             amountCents: totalCents,
@@ -367,10 +369,10 @@ export function PurchaseFlow({
       active = false;
       clearInterval(interval);
     };
-  }, [mpPayment, form, reservation, totalCents, raffleSlug, storageKey, router]);
+  }, [mpPayment, form, reservation, totalCents, raffleSlug, raffleTitle, storageKey, router]);
 
   async function handleStartMercadoPago() {
-    const valid = await form.trigger(["fullName", "phone"]);
+    const valid = await form.trigger(["fullName", "phone", "email"]);
     if (!valid) return;
     if (!reservation) return;
 
@@ -422,7 +424,7 @@ export function PurchaseFlow({
         toast.success("🎉 Pagamento confirmado com sucesso!");
         const receipt: SaleReceipt = {
           saleId: mpPayment.saleId,
-          raffleTitle: "",
+          raffleTitle,
           buyerName: form.getValues("fullName"),
           pointNumbers: reservation?.pointNumbers ?? [],
           amountCents: totalCents,

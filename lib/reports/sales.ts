@@ -63,7 +63,29 @@ export async function querySalesReport(
 
   if (filters.status) {
     if (filters.status === "PENDING") {
+      const { data: approvedLogs } = await supabase
+        .from("audit_logs")
+        .select("entity_id")
+        .eq("entity_type", "raffle_sale")
+        .eq("action", "SALE_APPROVED");
+      const approvedIds = (approvedLogs ?? []).map((l) => l.entity_id);
       query = query.is("seller_id", null).eq("status", "CONFIRMED");
+      if (approvedIds.length > 0) {
+        query = query.not("id", "in", `(${approvedIds.join(",")})`);
+      }
+    } else if (filters.status === "CONFIRMED") {
+      const { data: approvedLogs } = await supabase
+        .from("audit_logs")
+        .select("entity_id")
+        .eq("entity_type", "raffle_sale")
+        .eq("action", "SALE_APPROVED");
+      const approvedIds = (approvedLogs ?? []).map((l) => l.entity_id);
+      query = query.eq("status", "CONFIRMED");
+      if (approvedIds.length > 0) {
+        query = query.or(`not.seller_id.is.null,id.in.(${approvedIds.join(",")})`);
+      } else {
+        query = query.not("seller_id", "is", null);
+      }
     } else {
       query = query.eq("status", filters.status);
     }
@@ -99,13 +121,28 @@ export async function querySalesReport(
   const { data, count, error } = await query;
   if (error) throw new Error(error.message);
 
-  const rows: SalesReportRow[] = (data ?? []).map((s) => ({
+  const rawSales = data ?? [];
+  const saleIds = rawSales.map((s) => s.id);
+
+  const { data: approvedLogs } =
+    saleIds.length > 0
+      ? await supabase
+          .from("audit_logs")
+          .select("entity_id")
+          .eq("entity_type", "raffle_sale")
+          .eq("action", "SALE_APPROVED")
+          .in("entity_id", saleIds)
+      : { data: [] };
+
+  const approvedSaleIds = new Set((approvedLogs ?? []).map((l) => l.entity_id));
+
+  const rows: SalesReportRow[] = rawSales.map((s) => ({
     id: s.id,
     amountCents: s.amount_cents,
     status:
       s.status === "CANCELLED"
         ? "CANCELLED"
-        : s.profiles
+        : s.profiles || approvedSaleIds.has(s.id)
           ? "CONFIRMED"
           : "PENDING",
     createdAt: s.created_at,

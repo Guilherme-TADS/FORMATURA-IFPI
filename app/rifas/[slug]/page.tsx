@@ -196,6 +196,7 @@ async function RaffleContent({
         <PurchaseFlow
           raffleId={raffle.id!}
           raffleSlug={raffle.slug!}
+          raffleTitle={raffle.title!}
           unitPriceCents={raffle.unit_price_cents!}
           paymentMethods={paymentMethods}
           reservationTtlMinutes={reservationTtlMinutes}
