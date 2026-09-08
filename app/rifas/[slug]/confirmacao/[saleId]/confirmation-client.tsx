@@ -39,44 +39,75 @@ export function ConfirmationClient({
 
   useEffect(() => {
     let isMounted = true;
+    let pollTimer: ReturnType<typeof setTimeout> | null = null;
+    let pollCount = 0;
+
     const raw = sessionStorage.getItem(`receipt:${saleId}`);
     if (raw) {
       try {
-        const parsed = JSON.parse(raw);
+        const parsed: SaleReceipt = JSON.parse(raw);
         if (parsed) {
           queueMicrotask(() => {
             if (isMounted) setReceipt(parsed);
           });
-          return;
+          // Se já estiver confirmado ou cancelado, não precisa buscar novamente
+          if (parsed.status && parsed.status !== "PENDING") {
+            return;
+          }
         }
       } catch {
-        // Falha no parse, tenta buscar no servidor
+        // Falha no parse, continua para buscar do servidor
       }
     }
 
-    fetchSaleReceipt(saleId, slug).then((serverReceipt) => {
+    async function checkStatus() {
+      const serverReceipt = await fetchSaleReceipt(saleId, slug);
       if (!isMounted) return;
+
       if (serverReceipt) {
         sessionStorage.setItem(`receipt:${saleId}`, JSON.stringify(serverReceipt));
-        setReceipt(serverReceipt);
+        setReceipt((prev) => {
+          if (prev?.status === "PENDING" && serverReceipt.status === "CONFIRMED") {
+            toast.success("Pagamento confirmado com sucesso!");
+          }
+          return serverReceipt;
+        });
+
+        // Se ainda estiver pendente, continua polling a cada 4s (até 25 tentativas ~ 100s)
+        if (serverReceipt.status === "PENDING" && pollCount < 25) {
+          pollCount++;
+          pollTimer = setTimeout(checkStatus, 4000);
+        }
       } else {
-        setReceipt(null);
+        setReceipt((prev) => (prev !== undefined ? prev : null));
       }
-    });
+    }
+
+    checkStatus();
 
     return () => {
       isMounted = false;
+      if (pollTimer) clearTimeout(pollTimer);
     };
   }, [saleId, slug]);
 
   function copyToClipboard() {
     if (!receipt) return;
+    const statusLabel =
+      receipt.status === "PENDING"
+        ? "Pendente de conferência"
+        : receipt.status === "CANCELLED"
+          ? "Cancelado"
+          : "Confirmado";
+
     const text = [
       `Rifa: ${receipt.raffleTitle}`,
       `Comprador: ${receipt.buyerName}`,
       `Números: ${receipt.pointNumbers.join(", ")}`,
       `Valor: ${centsToBRL(receipt.amountCents)}`,
       `Forma de pagamento: ${receipt.paymentMethod}`,
+      `Status: ${statusLabel}`,
+      `Comprovante: ${receipt.saleId.slice(0, 8).toUpperCase()}`,
     ].join("\n");
     navigator.clipboard.writeText(text);
     toast.success("Copiado para a área de transferência.");
@@ -116,6 +147,13 @@ export function ConfirmationClient({
               >
                 ⏳ Aguardando Conferência
               </span>
+            ) : receipt.status === "CANCELLED" ? (
+              <span
+                className="stamp text-void animate-stamp-in border-void text-sm"
+                style={{ animationDelay: "0.35s" }}
+              >
+                ✗ Cancelado
+              </span>
             ) : (
               <span
                 className="stamp text-confirmed animate-stamp-in border-confirmed text-sm"
@@ -129,13 +167,21 @@ export function ConfirmationClient({
             </h1>
             <p className="text-muted-foreground mt-1 text-xs">
               {receipt.status === "PENDING"
-                ? "Recebemos seu pedido! Seus números estão reservados com exclusividade enquanto a comissão confere o pagamento."
-                : "Guarde esta confirmação — ela é o seu comprovante."}
+                ? "Recebemos seu pedido! Seus números estão reservados com exclusividade enquanto a confirmação do pagamento é processada."
+                : receipt.status === "CANCELLED"
+                  ? "Este pedido foi cancelado e os números foram liberados novamente."
+                  : "Guarde esta confirmação — ela é o seu comprovante."}
             </p>
           </div>
 
           <div className="mt-5 flex flex-col items-center border-y border-dashed border-border py-4">
-            <span className="label-tag">{receipt.status === "PENDING" ? "Valor a conferir" : "Valor pago"}</span>
+            <span className="label-tag">
+              {receipt.status === "PENDING"
+                ? "Valor a conferir"
+                : receipt.status === "CANCELLED"
+                  ? "Valor cancelado"
+                  : "Valor pago"}
+            </span>
             <span className="font-figures mt-1 text-3xl font-semibold">
               {centsToBRL(receipt.amountCents)}
             </span>
@@ -151,7 +197,13 @@ export function ConfirmationClient({
             <ReceiptRow label="Pagamento" value={receipt.paymentMethod} />
             <ReceiptRow
               label="Status"
-              value={receipt.status === "PENDING" ? "Pendente de conferência" : "Confirmado"}
+              value={
+                receipt.status === "PENDING"
+                  ? "Pendente de conferência"
+                  : receipt.status === "CANCELLED"
+                    ? "Cancelado"
+                    : "Confirmado"
+              }
             />
             <ReceiptRow
               label="Data"

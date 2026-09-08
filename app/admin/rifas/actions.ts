@@ -1,5 +1,6 @@
 "use server";
 
+import { randomInt } from "node:crypto";
 import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
@@ -251,13 +252,14 @@ export async function drawRaffleWinner(
         .from("raffle_points")
         .select("id, point_number")
         .eq("raffle_id", raffleId)
-        .eq("status", "SOLD");
+        .eq("status", "SOLD")
+        .limit(100000);
 
       if (soldError || !soldPoints || soldPoints.length === 0) {
         return { error: "Não há números vendidos nesta rifa para realizar o sorteio." };
       }
 
-      const randomIndex = Math.floor(Math.random() * soldPoints.length);
+      const randomIndex = randomInt(0, soldPoints.length);
       chosenPoint = soldPoints[randomIndex];
     }
 
