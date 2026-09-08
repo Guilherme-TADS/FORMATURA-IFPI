@@ -58,8 +58,10 @@ export async function inviteUser(
   }
 
   const admin = createAdminClient();
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/+$/, "");
   const { error } = await admin.auth.admin.inviteUserByEmail(trimmedEmail, {
     data: { full_name: trimmedName, role },
+    redirectTo: `${siteUrl}/auth/callback?next=/auth/definir-senha`,
   });
 
   if (error) {

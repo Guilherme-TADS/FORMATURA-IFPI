@@ -72,8 +72,9 @@ export async function requestPasswordReset(
   }
 
   const supabase = await createClient();
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/+$/, "");
   await supabase.auth.resetPasswordForEmail(parsed.data.email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/auth/callback?next=/auth/definir-senha`,
+    redirectTo: `${siteUrl}/auth/callback?next=/auth/definir-senha`,
   });
 
   // Always report success, whether or not the e-mail exists — do not leak

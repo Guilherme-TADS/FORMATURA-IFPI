@@ -18,10 +18,15 @@ const STATUS_LABELS: Record<string, string> = {
 const MAX_EXPORT_ROWS = 5000;
 
 function csvEscape(value: string): string {
-  if (/[";\n]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
+  let sanitized = value;
+  // Mitigate CSV Formula Injection (CWE-1236)
+  if (/^[=+\-@\t\r]/.test(sanitized)) {
+    sanitized = `'${sanitized}`;
   }
-  return value;
+  if (/[";\n\r]/.test(sanitized)) {
+    return `"${sanitized.replace(/"/g, '""')}"`;
+  }
+  return sanitized;
 }
 
 export async function GET(request: Request) {
@@ -75,16 +80,17 @@ export async function GET(request: Request) {
       { header: "Data", key: "date", width: 20 },
     ];
     sheet.getRow(1).font = { bold: true };
+    const cleanCell = (v: string) => (/^[=+\-@\t\r]/.test(v) ? `'${v}` : v);
     for (const row of rows) {
       sheet.addRow({
-        buyer: row.buyerName,
-        phone: row.buyerPhone,
+        buyer: cleanCell(row.buyerName),
+        phone: cleanCell(row.buyerPhone),
         numbers: row.pointNumbers.join(", "),
         amount: row.amountCents / 100,
-        payment: row.paymentMethod,
-        seller: row.sellerName,
+        payment: cleanCell(row.paymentMethod),
+        seller: cleanCell(row.sellerName),
         status: STATUS_LABELS[row.status] ?? row.status,
-        raffle: row.raffleTitle,
+        raffle: cleanCell(row.raffleTitle),
         date: new Date(row.createdAt).toLocaleString("pt-BR"),
       });
     }
